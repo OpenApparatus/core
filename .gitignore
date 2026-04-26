@@ -1,0 +1,25 @@
+# .NET build outputs
+bin/
+**/obj/
+
+# IDE / editor
+*.user
+*.suo
+.vs/
+.vscode/
+.idea/
+*.DotSettings.user
+
+# Test / coverage / benchmarks
+TestResults/
+coverage*.xml
+coverage*.json
+BenchmarkDotNet.Artifacts/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.bak
