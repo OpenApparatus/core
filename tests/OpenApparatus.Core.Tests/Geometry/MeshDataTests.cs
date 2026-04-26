@@ -76,12 +76,36 @@ public class MeshDataTests
     }
 
     [Fact]
-    public void Builder_RejectsSparseSubmeshIndices()
+    public void Builder_FillsGapsWithEmptySubmeshes()
     {
+        // Used: submesh 0 and 2; skipped: 1. Output should have a 3-submesh array
+        // with submesh 1 being an empty int[].
         var b = new MeshDataBuilder();
-        // submesh 0 and 2 used, 1 skipped — should throw.
         b.AddQuadAutoUv(0, Vector3.Zero, Vector3.UnitX, Vector3.UnitY + Vector3.UnitX, Vector3.UnitY);
         b.AddQuadAutoUv(2, Vector3.Zero, Vector3.UnitX, Vector3.UnitY + Vector3.UnitX, Vector3.UnitY);
+        var mesh = b.ToMeshData();
+
+        Assert.Equal(3, mesh.SubmeshCount);
+        Assert.Equal(2, mesh.TriangleCount(0));
+        Assert.Equal(0, mesh.TriangleCount(1));
+        Assert.Equal(2, mesh.TriangleCount(2));
+    }
+
+    [Fact]
+    public void Builder_NegativeSubmeshIndex_Throws()
+    {
+        var b = new MeshDataBuilder();
+        b.AddQuadAutoUv(-1, Vector3.Zero, Vector3.UnitX, Vector3.UnitY + Vector3.UnitX, Vector3.UnitY);
         Assert.Throws<InvalidOperationException>(() => b.ToMeshData());
+    }
+
+    [Fact]
+    public void Builder_EnsureSubmeshCount_PadsToRequestedSize()
+    {
+        var b = new MeshDataBuilder();
+        b.AddQuadAutoUv(0, Vector3.Zero, Vector3.UnitX, Vector3.UnitY + Vector3.UnitX, Vector3.UnitY);
+        b.EnsureSubmeshCount(3);
+        var mesh = b.ToMeshData();
+        Assert.Equal(3, mesh.SubmeshCount);
     }
 }

@@ -72,28 +72,44 @@ public sealed class MeshDataBuilder
 
     public MeshData ToMeshData()
     {
-        // Stable submesh ordering: by integer key ascending.
-        var keys = new List<int>(_submeshes.Keys);
-        keys.Sort();
-
-        // Validate dense submesh indices (0..N-1). Sparse indices (e.g. 0, 2 but not 1)
-        // would silently produce surprising output.
-        for (int i = 0; i < keys.Count; i++)
+        // Output length = max submesh key + 1. Unused indices in the [0..max] range
+        // are emitted as empty arrays — this lets a builder populate only submesh 1
+        // (walls) while still producing a 3-submesh MeshData with the conventional
+        // index layout (0=Floor, 1=Walls, 2=Ceiling) ready to be combined with other
+        // partial MeshData later.
+        int submeshCount = 0;
+        foreach (var key in _submeshes.Keys)
         {
-            if (keys[i] != i)
-                throw new InvalidOperationException(
-                    $"Submesh indices must be dense and start at 0; saw {string.Join(",", keys)}.");
+            if (key < 0)
+                throw new InvalidOperationException($"Submesh indices must be non-negative; saw {key}.");
+            if (key + 1 > submeshCount) submeshCount = key + 1;
         }
 
-        var submeshArrays = new int[keys.Count][];
-        for (int i = 0; i < keys.Count; i++)
-            submeshArrays[i] = _submeshes[keys[i]].ToArray();
+        var submeshArrays = new int[submeshCount][];
+        for (int i = 0; i < submeshCount; i++)
+            submeshArrays[i] = _submeshes.TryGetValue(i, out var list)
+                ? list.ToArray()
+                : Array.Empty<int>();
 
         return new MeshData(
             _vertices.ToArray(),
             _normals.ToArray(),
             _uv0.ToArray(),
             submeshArrays);
+    }
+
+    /// <summary>
+    /// Forces the output to have at least <paramref name="submeshCount"/> submeshes,
+    /// padding any unused indices with empty arrays. Useful when the builder hasn't
+    /// touched all conventional submeshes but downstream code expects them.
+    /// </summary>
+    public void EnsureSubmeshCount(int submeshCount)
+    {
+        for (int i = 0; i < submeshCount; i++)
+        {
+            if (!_submeshes.ContainsKey(i))
+                _submeshes[i] = new List<int>();
+        }
     }
 
     List<int> GetOrAddSubmesh(int index)

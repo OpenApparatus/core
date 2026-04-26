@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace OpenApparatus.Geometry;
@@ -48,5 +49,57 @@ public sealed class MeshData
                 total += SubmeshIndices[i].Length / 3;
             return total;
         }
+    }
+
+    /// <summary>
+    /// Concatenates several mesh-datas into one. Vertex/normal/UV arrays are appended;
+    /// submesh triangles are merged by index, with indices offset by the running vertex count
+    /// so each input's triangles continue to reference its own vertices.
+    /// Submesh count of the result = max submesh count across inputs.
+    /// </summary>
+    public static MeshData Combine(IReadOnlyList<MeshData> parts)
+    {
+        if (parts is null) throw new ArgumentNullException(nameof(parts));
+        if (parts.Count == 0)
+            return new MeshData(Array.Empty<Vector3>(), Array.Empty<Vector3>(),
+                Array.Empty<Vector2>(), Array.Empty<int[]>());
+
+        int totalVerts = 0;
+        int submeshCount = 0;
+        for (int i = 0; i < parts.Count; i++)
+        {
+            totalVerts += parts[i].VertexCount;
+            if (parts[i].SubmeshCount > submeshCount) submeshCount = parts[i].SubmeshCount;
+        }
+
+        var verts = new Vector3[totalVerts];
+        var normals = new Vector3[totalVerts];
+        var uv0 = new Vector2[totalVerts];
+        var perSubmeshIndices = new List<int>[submeshCount];
+        for (int s = 0; s < submeshCount; s++) perSubmeshIndices[s] = new List<int>();
+
+        int vertOffset = 0;
+        foreach (var part in parts)
+        {
+            Array.Copy(part.Vertices, 0, verts, vertOffset, part.VertexCount);
+            Array.Copy(part.Normals, 0, normals, vertOffset, part.VertexCount);
+            Array.Copy(part.Uv0, 0, uv0, vertOffset, part.VertexCount);
+
+            for (int s = 0; s < part.SubmeshCount; s++)
+            {
+                var srcTris = part.SubmeshIndices[s];
+                var dstList = perSubmeshIndices[s];
+                for (int i = 0; i < srcTris.Length; i++)
+                    dstList.Add(srcTris[i] + vertOffset);
+            }
+
+            vertOffset += part.VertexCount;
+        }
+
+        var submeshArrays = new int[submeshCount][];
+        for (int s = 0; s < submeshCount; s++)
+            submeshArrays[s] = perSubmeshIndices[s].ToArray();
+
+        return new MeshData(verts, normals, uv0, submeshArrays);
     }
 }
