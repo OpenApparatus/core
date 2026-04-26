@@ -88,18 +88,21 @@ public class BoundaryWallBuilderTests
             new Passage.Doorway(offsetAlongEdge: 0.4f, width: 0.2f, height: 2.2f));
         var mesh = new BoundaryWallBuilder().Build(adj, 0.2f, 3f);
         // Centered door, lintel present, both jambs present.
-        // Faces: 3 (RoomA: jamb-jamb-lintel) + 3 (RoomB) + 1 (top) + 2 (bottom split) +
+        // Walls: 3 (RoomA: jamb-jamb-lintel) + 3 (RoomB) + 1 (top) + 2 (bottom split) +
         //        2 (caps) + 3 (tunnel: left, right, ceiling) = 14.
+        // Floor: 1 (door threshold).
         Assert.Equal(14 * 2, mesh.TriangleCount(SubmeshIndex.Walls));
+        Assert.Equal(1 * 2, mesh.TriangleCount(SubmeshIndex.Floor));
     }
 
     [Fact]
-    public void DoorwayPassage_VertexCount_Matches14FacesAt4VertsEach()
+    public void DoorwayPassage_VertexCount_Matches15FacesAt4VertsEach()
     {
         var (_, _, adj) = MakeInternalAdjacency(
             new Passage.Doorway(offsetAlongEdge: 0.4f, width: 0.2f, height: 2.2f));
         var mesh = new BoundaryWallBuilder().Build(adj, 0.2f, 3f);
-        Assert.Equal(14 * 4, mesh.VertexCount);
+        // 14 wall faces + 1 threshold floor face.
+        Assert.Equal(15 * 4, mesh.VertexCount);
     }
 
     [Fact]
@@ -118,6 +121,7 @@ public class BoundaryWallBuilderTests
             new Passage.Doorway(offsetAlongEdge: 0f, width: 0.4f, height: 2.2f));
         var mesh = new BoundaryWallBuilder().Build(adj, 0.2f, 3f);
         Assert.Equal(11 * 2, mesh.TriangleCount(SubmeshIndex.Walls));
+        Assert.Equal(1 * 2, mesh.TriangleCount(SubmeshIndex.Floor));
     }
 
     [Fact]
@@ -140,7 +144,8 @@ public class BoundaryWallBuilderTests
         }));
         var mesh = new BoundaryWallBuilder().Build(adj, 0.2f, 3f);
         Assert.Equal(22 * 2, mesh.TriangleCount(SubmeshIndex.Walls));
-        Assert.Equal(22 * 4, mesh.VertexCount);
+        Assert.Equal(2 * 2, mesh.TriangleCount(SubmeshIndex.Floor));
+        Assert.Equal(24 * 4, mesh.VertexCount);
     }
 
     [Fact]

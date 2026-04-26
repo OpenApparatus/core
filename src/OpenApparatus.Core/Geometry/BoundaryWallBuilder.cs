@@ -159,7 +159,8 @@ public sealed class BoundaryWallBuilder
             slab.Corner( true, slab.Length, h));
 
         // Tunnel inner faces (visible inside each doorway): left side, right side,
-        // and ceiling at the lintel's underside.
+        // ceiling at the lintel's underside (or wall top for full-height openings),
+        // and a threshold floor at y=0 spanning the wall thickness.
         foreach (var op in openings)
         {
             float doorEnd = op.OffsetAlongEdge + op.Width;
@@ -175,13 +176,22 @@ public sealed class BoundaryWallBuilder
                 slab.Corner( true, doorEnd, 0f),
                 slab.Corner( true, doorEnd, op.Height),
                 slab.Corner(false, doorEnd, op.Height));
-            // Ceiling, if there's a lintel above the opening
-            if (op.Height < h - EPS)
-                b.AddQuadAutoUv(SubmeshIndex.Walls,
-                    slab.Corner( true, op.OffsetAlongEdge, op.Height),
-                    slab.Corner( true, doorEnd,            op.Height),
-                    slab.Corner(false, doorEnd,            op.Height),
-                    slab.Corner(false, op.OffsetAlongEdge, op.Height));
+            // Ceiling — lintel underside (or wall-top span if full-height opening).
+            // Without this, looking up while walking through the doorway shows the void.
+            float ceilY = op.Height < h - EPS ? op.Height : h;
+            b.AddQuadAutoUv(SubmeshIndex.Walls,
+                slab.Corner( true, op.OffsetAlongEdge, ceilY),
+                slab.Corner( true, doorEnd,            ceilY),
+                slab.Corner(false, doorEnd,            ceilY),
+                slab.Corner(false, op.OffsetAlongEdge, ceilY));
+            // Threshold floor (normal +Y) — closes the gap between the two room floors.
+            // Goes in the Floor submesh so it picks up the floor material in tools that
+            // honor submesh assignments.
+            b.AddQuadAutoUv(SubmeshIndex.Floor,
+                slab.Corner(false, op.OffsetAlongEdge, 0f),
+                slab.Corner( true, op.OffsetAlongEdge, 0f),
+                slab.Corner( true, doorEnd,            0f),
+                slab.Corner(false, doorEnd,            0f));
         }
 
         b.EnsureSubmeshCount(SubmeshIndex.Count);
