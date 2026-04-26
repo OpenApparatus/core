@@ -14,7 +14,7 @@ public class SpanningTreePassageAssignerTests
         var gen = new GridDominoGenerator
         {
             FloorWidthCells = w,
-            FloorHeightCells = h,
+            FloorLengthCells = h,
             RectangleRoomCount = rects,
             TileSize = tile,
         };

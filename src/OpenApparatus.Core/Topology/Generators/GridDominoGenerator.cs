@@ -5,7 +5,7 @@ using System.Numerics;
 namespace OpenApparatus.Topology.Generators;
 
 /// <summary>
-/// Tiles an axis-aligned <c>floorWidth × floorHeight</c> grid of square tiles
+/// Tiles an axis-aligned <c>floorWidth × floorLength</c> grid of square tiles
 /// (each <see cref="TileSize"/> on a side) with:
 ///   1. <see cref="RectangleRoomCount"/> randomly-placed 1×2 dominoes (rectangle rooms),
 ///   2. then 1×1 squares filling every remaining tile.
@@ -20,7 +20,7 @@ public sealed class GridDominoGenerator : IFloorPlanGenerator
     public int FloorWidthCells { get; set; } = 4;
 
     /// <summary>Number of tiles along the +Z axis.</summary>
-    public int FloorHeightCells { get; set; } = 4;
+    public int FloorLengthCells { get; set; } = 4;
 
     /// <summary>How many 1×2 rectangle rooms to place before filling with squares.</summary>
     public int RectangleRoomCount { get; set; } = 0;
@@ -31,21 +31,27 @@ public sealed class GridDominoGenerator : IFloorPlanGenerator
     /// <summary>Cap on the random-retry loop when a domino placement collides.</summary>
     public int MaxPlacementRetries { get; set; } = 256;
 
+    /// <summary>
+    /// Controls whether each rectangle is laid length-wise (1×2 along +Z),
+    /// width-wise (2×1 along +X), or randomly per-rectangle (the default).
+    /// </summary>
+    public RectangleOrientation Orientation { get; set; } = RectangleOrientation.Random;
+
     public FloorPlan Generate(SeededRandom rng)
     {
         if (FloorWidthCells <= 0) throw new InvalidOperationException("FloorWidthCells must be positive.");
-        if (FloorHeightCells <= 0) throw new InvalidOperationException("FloorHeightCells must be positive.");
+        if (FloorLengthCells <= 0) throw new InvalidOperationException("FloorLengthCells must be positive.");
         if (RectangleRoomCount < 0) throw new InvalidOperationException("RectangleRoomCount must be non-negative.");
-        int totalTiles = FloorWidthCells * FloorHeightCells;
+        int totalTiles = FloorWidthCells * FloorLengthCells;
         if (RectangleRoomCount * 2 > totalTiles)
             throw new InvalidOperationException(
                 $"Cannot fit {RectangleRoomCount} rectangle rooms (= {RectangleRoomCount * 2} tiles) " +
-                $"into a {FloorWidthCells}×{FloorHeightCells} grid (= {totalTiles} tiles).");
+                $"into a {FloorWidthCells}×{FloorLengthCells} grid (= {totalTiles} tiles).");
 
         // grid[x, z] = -1 if unoccupied, else the room id.
-        int[,] grid = new int[FloorWidthCells, FloorHeightCells];
+        int[,] grid = new int[FloorWidthCells, FloorLengthCells];
         for (int x = 0; x < FloorWidthCells; x++)
-            for (int z = 0; z < FloorHeightCells; z++)
+            for (int z = 0; z < FloorLengthCells; z++)
                 grid[x, z] = -1;
 
         var rooms = new List<RoomLayout>();
@@ -61,7 +67,7 @@ public sealed class GridDominoGenerator : IFloorPlanGenerator
 
         // 2) Fill remaining tiles with 1×1 squares.
         for (int x = 0; x < FloorWidthCells; x++)
-            for (int z = 0; z < FloorHeightCells; z++)
+            for (int z = 0; z < FloorLengthCells; z++)
             {
                 if (grid[x, z] != -1) continue;
                 int id = rooms.Count;
@@ -86,14 +92,21 @@ public sealed class GridDominoGenerator : IFloorPlanGenerator
         for (int attempt = 0; attempt < MaxPlacementRetries; attempt++)
         {
             int x = rng.NextInt(FloorWidthCells);
-            int z = rng.NextInt(FloorHeightCells);
-            bool horizontal = rng.NextBool();   // true = extends along +X, false = along +Z
+            int z = rng.NextInt(FloorLengthCells);
+            // horizontal = true means rectangle spans +X (a 2x1, "width-wise" placement);
+            // horizontal = false means it spans +Z (1x2, "length-wise" placement).
+            bool horizontal = Orientation switch
+            {
+                RectangleOrientation.WidthWise => true,
+                RectangleOrientation.LengthWise => false,
+                _ => rng.NextBool(),
+            };
 
             if (grid[x, z] != -1) continue;
 
             int x2 = horizontal ? x + 1 : x;
             int z2 = horizontal ? z : z + 1;
-            if (x2 >= FloorWidthCells || z2 >= FloorHeightCells) continue;
+            if (x2 >= FloorWidthCells || z2 >= FloorLengthCells) continue;
             if (grid[x2, z2] != -1) continue;
 
             int id = rooms.Count;
@@ -132,7 +145,7 @@ public sealed class GridDominoGenerator : IFloorPlanGenerator
         //   * For outer boundaries, the cell on the opposite-coordinate edge of the grid
         //     also needs its -X / -Z outer side accounted for.
         for (int x = 0; x < FloorWidthCells; x++)
-            for (int z = 0; z < FloorHeightCells; z++)
+            for (int z = 0; z < FloorLengthCells; z++)
             {
                 int self = grid[x, z];
                 ConsiderEdge(self, x, z, +1, 0, grid, bins); // east — internal or outer
@@ -161,7 +174,7 @@ public sealed class GridDominoGenerator : IFloorPlanGenerator
     {
         int nx = x + dx;
         int nz = z + dz;
-        bool inBounds = nx >= 0 && nx < FloorWidthCells && nz >= 0 && nz < FloorHeightCells;
+        bool inBounds = nx >= 0 && nx < FloorWidthCells && nz >= 0 && nz < FloorLengthCells;
         int neighborId = inBounds ? grid[nx, nz] : -1;
 
         if (inBounds && neighborId == self) return;     // same room → not an adjacency

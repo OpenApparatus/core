@@ -7,7 +7,7 @@ namespace OpenApparatus.Tests.Topology.Generators;
 public class GridDominoGeneratorTests
 {
     static GridDominoGenerator Default(int w = 4, int h = 4, int rects = 0, float tile = 1f) =>
-        new() { FloorWidthCells = w, FloorHeightCells = h, RectangleRoomCount = rects, TileSize = tile };
+        new() { FloorWidthCells = w, FloorLengthCells = h, RectangleRoomCount = rects, TileSize = tile };
 
     [Fact]
     public void EmptyGrid_FillsWithOneSquarePerTile()
@@ -89,6 +89,34 @@ public class GridDominoGeneratorTests
             float big = MathF.Max(rect.Width, rect.Depth);
             Assert.Equal(1f, small, precision: 5);
             Assert.Equal(2f, big, precision: 5);
+        }
+    }
+
+    [Fact]
+    public void Orientation_LengthWise_AllRectanglesAre1x2()
+    {
+        var gen = Default(rects: 4);
+        gen.Orientation = RectangleOrientation.LengthWise;
+        var plan = gen.Generate(new SeededRandom(42));
+        foreach (var c in plan.Cells.Where(c => c.RoomType == RoomType.Rectangle))
+        {
+            var rect = (RectangleShape)c.Shape;
+            Assert.Equal(1f, rect.Width, precision: 5);
+            Assert.Equal(2f, rect.Depth, precision: 5);
+        }
+    }
+
+    [Fact]
+    public void Orientation_WidthWise_AllRectanglesAre2x1()
+    {
+        var gen = Default(rects: 4);
+        gen.Orientation = RectangleOrientation.WidthWise;
+        var plan = gen.Generate(new SeededRandom(42));
+        foreach (var c in plan.Cells.Where(c => c.RoomType == RoomType.Rectangle))
+        {
+            var rect = (RectangleShape)c.Shape;
+            Assert.Equal(2f, rect.Width, precision: 5);
+            Assert.Equal(1f, rect.Depth, precision: 5);
         }
     }
 

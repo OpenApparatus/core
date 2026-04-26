@@ -14,7 +14,7 @@ public class FloorPlanMeshAssemblerTests
         var gen = new GridDominoGenerator
         {
             FloorWidthCells = w,
-            FloorHeightCells = h,
+            FloorLengthCells = h,
             RectangleRoomCount = rects,
             TileSize = 3.5f,
         };
