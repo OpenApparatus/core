@@ -10,7 +10,7 @@ public abstract class Passage
 {
     private Passage() { }   // restrict subclasses to nested types only
 
-    /// <summary>A solid wall — no opening between the two cells (or to the outside).</summary>
+    /// <summary>A solid wall — no opening between the two rooms (or to the outside).</summary>
     public sealed class Closed : Passage
     {
         public static readonly Closed Instance = new();
@@ -18,7 +18,7 @@ public abstract class Passage
         public override string ToString() => "Closed";
     }
 
-    /// <summary>No wall at all. The two cells share floor space (e.g. T-maze internal arms).</summary>
+    /// <summary>No wall at all. The two rooms share floor space (e.g. T-maze internal arms).</summary>
     public sealed class Open : Passage
     {
         public static readonly Open Instance = new();

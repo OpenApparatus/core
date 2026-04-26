@@ -7,11 +7,11 @@ namespace OpenApparatus.Tests.Geometry;
 
 public class RectangleGeometryBuilderTests
 {
-    static Cell Cell(float w = 4, float d = 4, float px = 0, float pz = 0, float rot = 0) =>
+    static Room Room(float w = 4, float d = 4, float px = 0, float pz = 0, float rot = 0) =>
         new(0, new RectangleShape(w, d), new Vector2(px, pz), RoomType.Square, rot);
 
-    static MeshData Build(Cell cell, float t = 0.2f, float h = 3f) =>
-        new RectangleGeometryBuilder().Build(cell, t, h);
+    static MeshData Build(Room room, float t = 0.2f, float h = 3f) =>
+        new RectangleGeometryBuilder().Build(room, t, h);
 
     [Fact]
     public void RejectsNonRectangleShape()
@@ -25,31 +25,31 @@ public class RectangleGeometryBuilderTests
     [Fact]
     public void RejectsTooThickWalls()
     {
-        var cell = Cell(2f, 2f);
-        Assert.Throws<ArgumentException>(() => Build(cell, t: 1f, h: 3f));
-        Assert.Throws<ArgumentException>(() => Build(cell, t: 1.5f, h: 3f));
+        var room = Room(2f, 2f);
+        Assert.Throws<ArgumentException>(() => Build(room, t: 1f, h: 3f));
+        Assert.Throws<ArgumentException>(() => Build(room, t: 1.5f, h: 3f));
     }
 
     [Fact]
     public void RejectsNonPositiveDimensions()
     {
-        var cell = Cell();
-        Assert.Throws<ArgumentOutOfRangeException>(() => Build(cell, t: 0f, h: 3f));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Build(cell, t: 0.2f, h: 0f));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Build(cell, t: -0.1f, h: 3f));
+        var room = Room();
+        Assert.Throws<ArgumentOutOfRangeException>(() => Build(room, t: 0f, h: 3f));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Build(room, t: 0.2f, h: 0f));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Build(room, t: -0.1f, h: 3f));
     }
 
     [Fact]
     public void EmitsThreeSubmeshes()
     {
-        var mesh = Build(Cell());
+        var mesh = Build(Room());
         Assert.Equal(SubmeshIndex.Count, mesh.SubmeshCount);
     }
 
     [Fact]
     public void FloorAndCeiling_HaveOneFaceEach()
     {
-        var mesh = Build(Cell());
+        var mesh = Build(Room());
         Assert.Equal(2, mesh.TriangleCount(SubmeshIndex.Floor));   // 1 quad = 2 tris
         Assert.Equal(2, mesh.TriangleCount(SubmeshIndex.Ceiling));
     }
@@ -57,7 +57,7 @@ public class RectangleGeometryBuilderTests
     [Fact]
     public void Walls_Have16Faces()
     {
-        var mesh = Build(Cell());
+        var mesh = Build(Room());
         // 4 outer + 4 inner + 4 top frame + 4 bottom frame = 16 quads = 32 triangles
         Assert.Equal(32, mesh.TriangleCount(SubmeshIndex.Walls));
     }
@@ -65,7 +65,7 @@ public class RectangleGeometryBuilderTests
     [Fact]
     public void FloorNormals_PointUp()
     {
-        var mesh = Build(Cell());
+        var mesh = Build(Room());
         var floorTris = mesh.SubmeshIndices[SubmeshIndex.Floor];
         for (int i = 0; i < floorTris.Length; i++)
         {
@@ -77,7 +77,7 @@ public class RectangleGeometryBuilderTests
     [Fact]
     public void CeilingNormals_PointDown()
     {
-        var mesh = Build(Cell());
+        var mesh = Build(Room());
         var ceilTris = mesh.SubmeshIndices[SubmeshIndex.Ceiling];
         for (int i = 0; i < ceilTris.Length; i++)
         {
@@ -89,11 +89,11 @@ public class RectangleGeometryBuilderTests
     [Fact]
     public void OuterWalls_HaveHorizontalNormals_PointingAwayFromInterior()
     {
-        // The cell is at origin with width=depth=4. Interior center at (2, ?, 2).
+        // The room is at origin with width=depth=4. Interior center at (2, ?, 2).
         // Each outer wall's center is one edge of the bounding rectangle. The
-        // outward direction is the vector from the cell center to the face center.
-        var cell = Cell(4, 4);
-        var mesh = Build(cell);
+        // outward direction is the vector from the room center to the face center.
+        var room = Room(4, 4);
+        var mesh = Build(room);
 
         // Group wall faces by their median face position; verify normals point away from center.
         var wallTris = mesh.SubmeshIndices[SubmeshIndex.Walls];
@@ -112,9 +112,9 @@ public class RectangleGeometryBuilderTests
 
         // We expect 16 wall faces; not all are vertical (4 outer + 4 inner are vertical,
         // 4 top frame + 4 bottom frame are horizontal). Check just the OUTER 4 vertical
-        // faces — these are the ones at the cell-bounds extremes (X≈0, X≈4, Z≈0, Z≈4).
+        // faces — these are the ones at the room-bounds extremes (X≈0, X≈4, Z≈0, Z≈4).
         var outerVertical = faceMidpoints.Values
-            .Where(f => MathF.Abs(f.normal.Y) < 0.01f && IsAtCellBoundary(f.mid, cellW: 4, cellD: 4))
+            .Where(f => MathF.Abs(f.normal.Y) < 0.01f && IsAtCellBoundary(f.mid, roomW: 4, roomD: 4))
             .ToList();
         Assert.Equal(4, outerVertical.Count);
 
@@ -130,8 +130,8 @@ public class RectangleGeometryBuilderTests
     [Fact]
     public void Geometry_RespectsCellPosition()
     {
-        var cell = Cell(2, 2, px: 10, pz: 20);
-        var mesh = Build(cell, t: 0.1f, h: 3f);
+        var room = Room(2, 2, px: 10, pz: 20);
+        var mesh = Build(room, t: 0.1f, h: 3f);
 
         // The floor's 4 vertices should be near (10+0.1..10+1.9, 0, 20+0.1..20+1.9).
         var floorTris = mesh.SubmeshIndices[SubmeshIndex.Floor];
@@ -147,9 +147,9 @@ public class RectangleGeometryBuilderTests
     [Fact]
     public void Geometry_RespectsCellRotation_90Degrees()
     {
-        // Rotate a 4×2 cell by 90° around Y. The original X axis (width 4) maps to Z.
-        var cell = Cell(4, 2, rot: 90f);
-        var mesh = Build(cell, t: 0.1f, h: 3f);
+        // Rotate a 4×2 room by 90° around Y. The original X axis (width 4) maps to Z.
+        var room = Room(4, 2, rot: 90f);
+        var mesh = Build(room, t: 0.1f, h: 3f);
 
         var floorTris = mesh.SubmeshIndices[SubmeshIndex.Floor];
         var floorVerts = floorTris.Distinct().Select(i => mesh.Vertices[i]).ToList();
@@ -167,22 +167,22 @@ public class RectangleGeometryBuilderTests
     [Fact]
     public void TotalTriangleCount_Matches18FacesAt2TrianglesEach()
     {
-        var mesh = Build(Cell());
+        var mesh = Build(Room());
         Assert.Equal(36, mesh.TotalTriangleCount); // 18 faces × 2 triangles = 36
     }
 
     [Fact]
     public void TotalVertexCount_Matches18FacesAt4VerticesEach()
     {
-        var mesh = Build(Cell());
+        var mesh = Build(Room());
         Assert.Equal(72, mesh.VertexCount); // 18 faces × 4 verts (no sharing) = 72
     }
 
-    static bool IsAtCellBoundary(Vector3 mid, float cellW, float cellD, float epsilon = 1e-3f)
+    static bool IsAtCellBoundary(Vector3 mid, float roomW, float roomD, float epsilon = 1e-3f)
     {
         return MathF.Abs(mid.X - 0f) < epsilon
-            || MathF.Abs(mid.X - cellW) < epsilon
+            || MathF.Abs(mid.X - roomW) < epsilon
             || MathF.Abs(mid.Z - 0f) < epsilon
-            || MathF.Abs(mid.Z - cellD) < epsilon;
+            || MathF.Abs(mid.Z - roomD) < epsilon;
     }
 }

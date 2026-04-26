@@ -5,19 +5,19 @@ using System.Numerics;
 namespace OpenApparatus.Topology;
 
 /// <summary>
-/// A single room / region of a floor plan. Owns a <see cref="ICellShape"/> outline,
+/// A single room / region of a floor plan. Owns a <see cref="IRoomShape"/> outline,
 /// a world-space placement, and a classification used by generators.
 ///
-/// The shape lives in cell-local coordinates with the local origin defined by the
+/// The shape lives in room-local coordinates with the local origin defined by the
 /// shape implementation. World-space outline is computed by translating + rotating
 /// the local outline by <see cref="Position"/> and <see cref="Rotation"/>.
 /// </summary>
-public sealed class Cell
+public sealed class Room
 {
     public int Id { get; }
-    public ICellShape Shape { get; }
+    public IRoomShape Shape { get; }
 
-    /// <summary>World XZ position of the cell's local-origin point.</summary>
+    /// <summary>World XZ position of the room's local-origin point.</summary>
     public Vector2 Position { get; }
 
     /// <summary>Rotation about the +Y axis, in degrees. CCW positive (looking down).</summary>
@@ -26,7 +26,7 @@ public sealed class Cell
     /// <summary>Generator-assigned room type. Drives downstream behavior (e.g. entrance preference).</summary>
     public RoomType RoomType { get; }
 
-    public Cell(int id, ICellShape shape, Vector2 position, RoomType roomType, float rotation = 0f)
+    public Room(int id, IRoomShape shape, Vector2 position, RoomType roomType, float rotation = 0f)
     {
         Id = id;
         Shape = shape ?? throw new ArgumentNullException(nameof(shape));
@@ -35,7 +35,7 @@ public sealed class Cell
         RoomType = roomType;
     }
 
-    /// <summary>The cell's outline transformed into world coordinates.</summary>
+    /// <summary>The room's outline transformed into world coordinates.</summary>
     public IReadOnlyList<EdgeSegment> GetWorldOutline()
     {
         var local = Shape.GetOutline();
@@ -48,7 +48,7 @@ public sealed class Cell
     }
 
     /// <summary>
-    /// Transform a cell-local 2D point (in XZ) into a world-space 3D point at the
+    /// Transform a room-local 2D point (in XZ) into a world-space 3D point at the
     /// given <paramref name="y"/>, applying <see cref="Position"/> and <see cref="Rotation"/>.
     /// </summary>
     public System.Numerics.Vector3 LocalToWorld(System.Numerics.Vector2 cellLocal, float y)
@@ -64,7 +64,7 @@ public sealed class Cell
         return new System.Numerics.Vector3(rx + Position.X, y, rz + Position.Y);
     }
 
-    /// <summary>The cell's bounds in world coordinates (axis-aligned even if shape is rotated).</summary>
+    /// <summary>The room's bounds in world coordinates (axis-aligned even if shape is rotated).</summary>
     public Bounds2D GetWorldBounds()
     {
         var local = Shape.GetLocalBounds();
@@ -95,5 +95,5 @@ public sealed class Cell
         return rotated + Position;
     }
 
-    public override string ToString() => $"Cell #{Id} {RoomType} @ ({Position.X:F2},{Position.Y:F2})";
+    public override string ToString() => $"Room #{Id} {RoomType} @ ({Position.X:F2},{Position.Y:F2})";
 }

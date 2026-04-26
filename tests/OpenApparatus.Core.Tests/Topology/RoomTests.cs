@@ -3,13 +3,13 @@ using OpenApparatus.Topology;
 
 namespace OpenApparatus.Tests.Topology;
 
-public class CellTests
+public class RoomTests
 {
     [Fact]
     public void WorldOutline_TranslatesByPosition()
     {
-        var cell = new Cell(0, new RectangleShape(2, 3), new Vector2(10, 20), RoomType.Square);
-        var outline = cell.GetWorldOutline();
+        var room = new Room(0, new RectangleShape(2, 3), new Vector2(10, 20), RoomType.Square);
+        var outline = room.GetWorldOutline();
 
         // South edge translated by Position.
         Assert.Equal(new Vector2(10, 20), outline[0].Start);
@@ -20,10 +20,10 @@ public class CellTests
     public void WorldOutline_AtOriginWithNoRotation_EqualsLocalOutline()
     {
         var shape = new RectangleShape(2, 3);
-        var cell = new Cell(0, shape, Vector2.Zero, RoomType.Square);
+        var room = new Room(0, shape, Vector2.Zero, RoomType.Square);
 
         var local = shape.GetOutline();
-        var world = cell.GetWorldOutline();
+        var world = room.GetWorldOutline();
         for (int i = 0; i < local.Count; i++)
             Assert.Equal(local[i], world[i]);
     }
@@ -31,8 +31,8 @@ public class CellTests
     [Fact]
     public void WorldBounds_TranslatesByPosition()
     {
-        var cell = new Cell(0, new RectangleShape(2, 3), new Vector2(5, 7), RoomType.Square);
-        var b = cell.GetWorldBounds();
+        var room = new Room(0, new RectangleShape(2, 3), new Vector2(5, 7), RoomType.Square);
+        var b = room.GetWorldBounds();
         Assert.Equal(new Vector2(5, 7), b.Min);
         Assert.Equal(new Vector2(7, 10), b.Max);
     }
@@ -40,8 +40,8 @@ public class CellTests
     [Fact]
     public void WorldOutline_With90DegreeRotation_RotatesAllEdges()
     {
-        var cell = new Cell(0, new RectangleShape(2, 3), Vector2.Zero, RoomType.Square, rotation: 90f);
-        var outline = cell.GetWorldOutline();
+        var room = new Room(0, new RectangleShape(2, 3), Vector2.Zero, RoomType.Square, rotation: 90f);
+        var outline = room.GetWorldOutline();
 
         // (W,0) under +90° around Y → (0, W). The east edge in local space
         // was (2,0) → (2,3); after 90° rotation it becomes (0,2) → (-3,2).
@@ -53,7 +53,7 @@ public class CellTests
     public void Constructor_NullShape_Throws()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new Cell(0, null!, Vector2.Zero, RoomType.Square));
+            new Room(0, null!, Vector2.Zero, RoomType.Square));
     }
 
     sealed class Vector2Comparer(float epsilon) : IEqualityComparer<Vector2>

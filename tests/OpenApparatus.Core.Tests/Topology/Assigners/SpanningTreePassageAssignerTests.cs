@@ -8,7 +8,7 @@ namespace OpenApparatus.Tests.Topology.Assigners;
 
 public class SpanningTreePassageAssignerTests
 {
-    static (FloorPlan plan, GridDominoGenerator gen) MakePlan(
+    static (MultiRoomEnvironment plan, GridDominoGenerator gen) MakePlan(
         int seed, int w = 4, int h = 4, int rects = 0, float tile = 1f)
     {
         var gen = new GridDominoGenerator
@@ -34,7 +34,7 @@ public class SpanningTreePassageAssignerTests
         int internalDoorways = plan.GetInternalAdjacencies()
             .Count(a => a.Passage is Passage.Doorway);
 
-        Assert.Equal(plan.Cells.Count - 1, internalDoorways);
+        Assert.Equal(plan.Rooms.Count - 1, internalDoorways);
     }
 
     [Fact]
@@ -44,10 +44,10 @@ public class SpanningTreePassageAssignerTests
         new SpanningTreePassageAssigner { IncludeOuterEntrance = false }
             .Assign(plan, new SeededRandom(11));
 
-        // BFS from cell 0 over doorway edges and verify we reach every cell.
+        // BFS from room 0 over doorway edges and verify we reach every room.
         var graph = BuildDoorwayGraph(plan);
-        var visited = new HashSet<int> { plan.Cells[0].Id };
-        var queue = new Queue<int>(new[] { plan.Cells[0].Id });
+        var visited = new HashSet<int> { plan.Rooms[0].Id };
+        var queue = new Queue<int>(new[] { plan.Rooms[0].Id });
         while (queue.Count > 0)
         {
             int curr = queue.Dequeue();
@@ -55,7 +55,7 @@ public class SpanningTreePassageAssignerTests
             foreach (var n in nbrs)
                 if (visited.Add(n)) queue.Enqueue(n);
         }
-        Assert.Equal(plan.Cells.Count, visited.Count);
+        Assert.Equal(plan.Rooms.Count, visited.Count);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class SpanningTreePassageAssignerTests
 
         int internalDoorways = plan.GetInternalAdjacencies()
             .Count(a => a.Passage is Passage.Doorway);
-        Assert.Equal(plan.Cells.Count - 1, internalDoorways);
+        Assert.Equal(plan.Rooms.Count - 1, internalDoorways);
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public class SpanningTreePassageAssignerTests
     public void PreferEntranceRoomType_PicksMatchingRoomWhenAvailable()
     {
         // 3×3 grid with 1 rectangle → 8 rooms total (1 rect + 7 squares). At least
-        // some boundary cells will be squares; we ask for a Square entrance.
+        // some boundary rooms will be squares; we ask for a Square entrance.
         var (plan, _) = MakePlan(42, 3, 3, rects: 1);
         var assigner = new SpanningTreePassageAssigner
         {
@@ -136,7 +136,7 @@ public class SpanningTreePassageAssignerTests
         assigner.Assign(plan, new SeededRandom(7));
 
         var entrance = plan.GetOuterAdjacencies().Single(a => a.Passage is Passage.Doorway);
-        Assert.Equal(RoomType.Square, entrance.CellA.RoomType);
+        Assert.Equal(RoomType.Square, entrance.RoomA.RoomType);
     }
 
     [Fact]
@@ -148,13 +148,13 @@ public class SpanningTreePassageAssignerTests
         Assert.Throws<ArgumentNullException>(() => assigner.Assign(plan, null!));
     }
 
-    static Dictionary<int, List<int>> BuildDoorwayGraph(FloorPlan plan)
+    static Dictionary<int, List<int>> BuildDoorwayGraph(MultiRoomEnvironment plan)
     {
         var g = new Dictionary<int, List<int>>();
         foreach (var adj in plan.GetInternalAdjacencies())
         {
             if (adj.Passage is not Passage.Doorway) continue;
-            int a = adj.CellA.Id, b = adj.CellB!.Id;
+            int a = adj.RoomA.Id, b = adj.RoomB!.Id;
             if (!g.TryGetValue(a, out var la)) g[a] = la = new();
             if (!g.TryGetValue(b, out var lb)) g[b] = lb = new();
             la.Add(b);

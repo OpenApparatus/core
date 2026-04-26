@@ -19,7 +19,7 @@ namespace OpenApparatus.Geometry;
 /// All output is written to submesh <see cref="SubmeshIndex.Walls"/>; the
 /// returned mesh has <see cref="SubmeshIndex.Count"/> submeshes (Floor and
 /// Ceiling submeshes are present but empty), so it can be combined with
-/// per-cell interior MeshData in the assembler.
+/// per-room interior MeshData in the assembler.
 /// </summary>
 public sealed class BoundaryWallBuilder
 {
@@ -60,16 +60,16 @@ public sealed class BoundaryWallBuilder
     /// <summary>Emits the 6 faces of a fully-closed wall slab.</summary>
     static void EmitClosedWallFaces(MeshDataBuilder b, SlabFrame slab, float h)
     {
-        // Corners: A* on +N side (CellA), B* on -N side. Suffix 0=floor at start,
+        // Corners: A* on +N side (RoomA), B* on -N side. Suffix 0=floor at start,
         // 1=ceiling at start, 2=ceiling at end, 3=floor at end.
         Vector3 A0 = slab.Corner( true, 0f, 0f), A1 = slab.Corner( true, 0f, h);
         Vector3 A2 = slab.Corner( true, slab.Length, h), A3 = slab.Corner( true, slab.Length, 0f);
         Vector3 B0 = slab.Corner(false, 0f, 0f), B1 = slab.Corner(false, 0f, h);
         Vector3 B2 = slab.Corner(false, slab.Length, h), B3 = slab.Corner(false, slab.Length, 0f);
 
-        // CellA face (normal +N, viewed from CellA's interior)
+        // RoomA face (normal +N, viewed from RoomA's interior)
         b.AddQuadAutoUv(SubmeshIndex.Walls, A0, A3, A2, A1);
-        // CellB face (normal -N)
+        // RoomB face (normal -N)
         b.AddQuadAutoUv(SubmeshIndex.Walls, B0, B1, B2, B3);
         // Top (normal +Y)
         b.AddQuadAutoUv(SubmeshIndex.Walls, B1, B2, A2, A1);
@@ -106,7 +106,7 @@ public sealed class BoundaryWallBuilder
         bool hasRightJamb = doorEnd    < slab.Length - 1e-5f;
         bool hasLintel    = doorHeight < h - 1e-5f;
 
-        // -------- CellA face (normal +N) split into left jamb / lintel / right jamb --------
+        // -------- RoomA face (normal +N) split into left jamb / lintel / right jamb --------
         if (hasLeftJamb)
             b.AddQuadAutoUv(SubmeshIndex.Walls,
                 slab.Corner( true, 0f,         0f),
@@ -126,7 +126,7 @@ public sealed class BoundaryWallBuilder
                 slab.Corner( true, doorEnd,    h),
                 slab.Corner( true, doorOffset, h));
 
-        // -------- CellB face (normal -N) — same splits, mirrored winding --------
+        // -------- RoomB face (normal -N) — same splits, mirrored winding --------
         if (hasLeftJamb)
             b.AddQuadAutoUv(SubmeshIndex.Walls,
                 slab.Corner(false, 0f,         0f),
@@ -208,14 +208,14 @@ public sealed class BoundaryWallBuilder
 
     /// <summary>
     /// A coordinate frame for a wall slab: an origin (segment start), a "direction"
-    /// axis along the segment, a "normal" axis perpendicular to it (in XZ, +N = CellA side),
+    /// axis along the segment, a "normal" axis perpendicular to it (in XZ, +N = RoomA side),
     /// and a length. <see cref="Corner"/> turns slab-local (along, height, side) into world XYZ.
     /// </summary>
     readonly struct SlabFrame
     {
         public readonly Vector3 Origin;       // world position of segment start at y=0
         public readonly Vector3 DirectionXZ;  // unit vector along segment in XZ
-        public readonly Vector3 NormalXZ;     // unit vector 90° CCW from DirectionXZ in XZ; +N points to CellA
+        public readonly Vector3 NormalXZ;     // unit vector 90° CCW from DirectionXZ in XZ; +N points to RoomA
         public readonly float HalfThickness;
         public readonly float Length;
 
@@ -232,7 +232,7 @@ public sealed class BoundaryWallBuilder
         {
             var origin = new Vector3(seg.Start.X, 0f, seg.Start.Y);
             var d2 = seg.Direction;
-            var n2 = seg.Normal; // 90° CCW from d in XZ; +N points "left" of walker = CellA side
+            var n2 = seg.Normal; // 90° CCW from d in XZ; +N points "left" of walker = RoomA side
             var dir = new Vector3(d2.X, 0f, d2.Y);
             var nrm = new Vector3(n2.X, 0f, n2.Y);
             return new SlabFrame(origin, dir, nrm, thickness * 0.5f, seg.Length);

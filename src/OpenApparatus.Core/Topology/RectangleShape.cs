@@ -11,7 +11,7 @@ namespace OpenApparatus.Topology;
 /// Coordinate convention: +X = east, +Z = north (in 2D, +Y component of the
 /// stored Vector2 represents the +Z world axis).
 /// </summary>
-public sealed class RectangleShape : ICellShape
+public sealed class RectangleShape : IRoomShape
 {
     public float Width { get; }
     public float Depth { get; }

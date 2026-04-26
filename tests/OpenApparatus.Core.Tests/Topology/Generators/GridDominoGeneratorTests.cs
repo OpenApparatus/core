@@ -15,8 +15,8 @@ public class GridDominoGeneratorTests
         var gen = Default(3, 3);
         var plan = gen.Generate(new SeededRandom(42));
 
-        Assert.Equal(9, plan.Cells.Count);
-        Assert.All(plan.Cells, c => Assert.Equal(RoomType.Square, c.RoomType));
+        Assert.Equal(9, plan.Rooms.Count);
+        Assert.All(plan.Rooms, c => Assert.Equal(RoomType.Square, c.RoomType));
     }
 
     [Fact]
@@ -25,7 +25,7 @@ public class GridDominoGeneratorTests
         var gen = Default(rects: 3);
         var plan = gen.Generate(new SeededRandom(42));
 
-        int rects = plan.Cells.Count(c => c.RoomType == RoomType.Rectangle);
+        int rects = plan.Rooms.Count(c => c.RoomType == RoomType.Rectangle);
         Assert.Equal(3, rects);
     }
 
@@ -37,7 +37,7 @@ public class GridDominoGeneratorTests
 
         // 4×4 = 16 tiles; 3 rectangles = 6 tiles; remaining 10 tiles = 10 squares.
         // Total rooms = 3 + 10 = 13.
-        Assert.Equal(13, plan.Cells.Count);
+        Assert.Equal(13, plan.Rooms.Count);
     }
 
     [Fact]
@@ -47,11 +47,11 @@ public class GridDominoGeneratorTests
         var p1 = gen.Generate(new SeededRandom(7));
         var p2 = gen.Generate(new SeededRandom(7));
 
-        Assert.Equal(p1.Cells.Count, p2.Cells.Count);
-        for (int i = 0; i < p1.Cells.Count; i++)
+        Assert.Equal(p1.Rooms.Count, p2.Rooms.Count);
+        for (int i = 0; i < p1.Rooms.Count; i++)
         {
-            Assert.Equal(p1.Cells[i].RoomType, p2.Cells[i].RoomType);
-            Assert.Equal(p1.Cells[i].Position, p2.Cells[i].Position);
+            Assert.Equal(p1.Rooms[i].RoomType, p2.Rooms[i].RoomType);
+            Assert.Equal(p1.Rooms[i].Position, p2.Rooms[i].Position);
         }
     }
 
@@ -82,7 +82,7 @@ public class GridDominoGeneratorTests
     {
         var gen = Default(rects: 4);
         var plan = gen.Generate(new SeededRandom(42));
-        foreach (var c in plan.Cells.Where(c => c.RoomType == RoomType.Rectangle))
+        foreach (var c in plan.Rooms.Where(c => c.RoomType == RoomType.Rectangle))
         {
             var rect = (RectangleShape)c.Shape;
             float small = MathF.Min(rect.Width, rect.Depth);
@@ -98,7 +98,7 @@ public class GridDominoGeneratorTests
         var gen = Default(rects: 4);
         gen.Orientation = RectangleOrientation.LengthWise;
         var plan = gen.Generate(new SeededRandom(42));
-        foreach (var c in plan.Cells.Where(c => c.RoomType == RoomType.Rectangle))
+        foreach (var c in plan.Rooms.Where(c => c.RoomType == RoomType.Rectangle))
         {
             var rect = (RectangleShape)c.Shape;
             Assert.Equal(1f, rect.Width, precision: 5);
@@ -112,7 +112,7 @@ public class GridDominoGeneratorTests
         var gen = Default(rects: 4);
         gen.Orientation = RectangleOrientation.WidthWise;
         var plan = gen.Generate(new SeededRandom(42));
-        foreach (var c in plan.Cells.Where(c => c.RoomType == RoomType.Rectangle))
+        foreach (var c in plan.Rooms.Where(c => c.RoomType == RoomType.Rectangle))
         {
             var rect = (RectangleShape)c.Shape;
             Assert.Equal(2f, rect.Width, precision: 5);
@@ -128,7 +128,7 @@ public class GridDominoGeneratorTests
 
         // 2×2 floor of 4 squares. Internal adjacencies = 4 (two horizontal pairs + two vertical).
         Assert.Equal(4, plan.GetInternalAdjacencies().Count());
-        // Outer adjacencies: each of 4 cells has 2 outer sides → 8 total.
+        // Outer adjacencies: each of 4 rooms has 2 outer sides → 8 total.
         Assert.Equal(8, plan.GetOuterAdjacencies().Count());
     }
 
@@ -149,16 +149,16 @@ public class GridDominoGeneratorTests
         // two distinct squares — but only one per (rect, square) pair.
         var gen = Default(2, 2, rects: 1);
         // We can't force the orientation, so this test asserts the invariant "no two
-        // adjacencies share the same pair of cells" rather than the layout itself.
+        // adjacencies share the same pair of rooms" rather than the layout itself.
         var plan = gen.Generate(new SeededRandom(123));
 
         var seenPairs = new HashSet<(int, int)>();
         foreach (var adj in plan.GetInternalAdjacencies())
         {
-            var key = (System.Math.Min(adj.CellA.Id, adj.CellB!.Id),
-                       System.Math.Max(adj.CellA.Id, adj.CellB!.Id));
+            var key = (System.Math.Min(adj.RoomA.Id, adj.RoomB!.Id),
+                       System.Math.Max(adj.RoomA.Id, adj.RoomB!.Id));
             Assert.True(seenPairs.Add(key),
-                $"Duplicate adjacency between cells {key.Item1} and {key.Item2}.");
+                $"Duplicate adjacency between rooms {key.Item1} and {key.Item2}.");
         }
     }
 }

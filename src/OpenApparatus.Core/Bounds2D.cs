@@ -4,7 +4,7 @@ using System.Numerics;
 namespace OpenApparatus;
 
 /// <summary>
-/// An axis-aligned bounding box in the 2D XZ plane. Used for cell-local outline
+/// An axis-aligned bounding box in the 2D XZ plane. Used for room-local outline
 /// extents, world-space floor-plan extents, and quick adjacency screening.
 /// </summary>
 public readonly struct Bounds2D : IEquatable<Bounds2D>

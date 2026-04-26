@@ -10,11 +10,11 @@ namespace OpenApparatus.Topology.Generators;
 ///   1. <see cref="RectangleRoomCount"/> randomly-placed 1×2 dominoes (rectangle rooms),
 ///   2. then 1×1 squares filling every remaining tile.
 ///
-/// The output is a <see cref="FloorPlan"/> whose adjacencies are all initially
+/// The output is a <see cref="MultiRoomEnvironment"/> whose adjacencies are all initially
 /// <see cref="Passage.Closed"/>; pass it to an <see cref="IPassageAssigner"/> to
 /// open doors.
 /// </summary>
-public sealed class GridDominoGenerator : IFloorPlanGenerator
+public sealed class GridDominoGenerator : IMultiRoomEnvironmentGenerator
 {
     /// <summary>Number of tiles along the +X axis.</summary>
     public int FloorWidthCells { get; set; } = 4;
@@ -37,7 +37,7 @@ public sealed class GridDominoGenerator : IFloorPlanGenerator
     /// </summary>
     public RectangleOrientation Orientation { get; set; } = RectangleOrientation.Random;
 
-    public FloorPlan Generate(SeededRandom rng)
+    public MultiRoomEnvironment Generate(SeededRandom rng)
     {
         if (FloorWidthCells <= 0) throw new InvalidOperationException("FloorWidthCells must be positive.");
         if (FloorLengthCells <= 0) throw new InvalidOperationException("FloorLengthCells must be positive.");
@@ -54,12 +54,12 @@ public sealed class GridDominoGenerator : IFloorPlanGenerator
             for (int z = 0; z < FloorLengthCells; z++)
                 grid[x, z] = -1;
 
-        var rooms = new List<RoomLayout>();
+        var layouts = new List<RoomLayout>();
 
         // 1) Place rectangle rooms (dominoes).
         for (int i = 0; i < RectangleRoomCount; i++)
         {
-            if (!TryPlaceDomino(grid, rooms, rng))
+            if (!TryPlaceDomino(grid, layouts, rng))
                 throw new InvalidOperationException(
                     $"Failed to place rectangle room #{i} after {MaxPlacementRetries} retries. " +
                     $"Grid is too crowded for {RectangleRoomCount} rectangles.");
@@ -70,21 +70,21 @@ public sealed class GridDominoGenerator : IFloorPlanGenerator
             for (int z = 0; z < FloorLengthCells; z++)
             {
                 if (grid[x, z] != -1) continue;
-                int id = rooms.Count;
+                int id = layouts.Count;
                 grid[x, z] = id;
-                rooms.Add(new RoomLayout(id, RoomType.Square,
+                layouts.Add(new RoomLayout(id, RoomType.Square,
                     new Vector2Int(x, z), new Vector2Int(1, 1)));
             }
 
-        // 3) Materialize cells.
-        var cells = new Cell[rooms.Count];
-        for (int i = 0; i < rooms.Count; i++)
-            cells[i] = MakeCell(rooms[i]);
+        // 3) Materialize rooms.
+        var rooms = new Room[layouts.Count];
+        for (int i = 0; i < layouts.Count; i++)
+            rooms[i] = MakeRoom(layouts[i]);
 
         // 4) Build adjacencies by walking the grid.
-        var adjacencies = BuildAdjacencies(grid, cells);
+        var adjacencies = BuildAdjacencies(grid, rooms);
 
-        return new FloorPlan(cells, adjacencies);
+        return new MultiRoomEnvironment(rooms, adjacencies);
     }
 
     bool TryPlaceDomino(int[,] grid, List<RoomLayout> rooms, SeededRandom rng)
@@ -119,30 +119,30 @@ public sealed class GridDominoGenerator : IFloorPlanGenerator
         return false;
     }
 
-    Cell MakeCell(RoomLayout room)
+    Room MakeRoom(RoomLayout room)
     {
         var shape = new RectangleShape(room.SizeTiles.X * TileSize, room.SizeTiles.Z * TileSize);
         var pos = new Vector2(room.OriginTile.X * TileSize, room.OriginTile.Z * TileSize);
-        return new Cell(room.Id, shape, pos, room.Type);
+        return new Room(room.Id, shape, pos, room.Type);
     }
 
     /// <summary>
     /// Walks the grid and emits one adjacency per directed boundary segment between
-    /// distinct rooms (or between a room and the outside). Multiple grid-cell-pairs
+    /// distinct rooms (or between a room and the outside). Multiple grid-room-pairs
     /// between the same two rooms are collapsed into one adjacency with the merged
     /// world segment.
     /// </summary>
-    Adjacency[] BuildAdjacencies(int[,] grid, Cell[] cells)
+    Adjacency[] BuildAdjacencies(int[,] grid, Room[] rooms)
     {
         // key = (smallerRoomId, largerRoomId) for internal, or (roomId, -1 - outerSide) for outer
-        // value = list of unmerged grid-edge segments (in world coords, CCW-from-CellA direction)
+        // value = list of unmerged grid-edge segments (in world coords, CCW-from-RoomA direction)
         var bins = new Dictionary<(int, int, int), List<EdgeSegment>>();
 
         // Visit each boundary exactly once:
         //   * For internal boundaries, walk only the +X and +Z directions — every internal
-        //     edge is shared by two grid cells, and this picks the side with the smaller
+        //     edge is shared by two grid rooms, and this picks the side with the smaller
         //     coordinate, avoiding double-counting.
-        //   * For outer boundaries, the cell on the opposite-coordinate edge of the grid
+        //   * For outer boundaries, the room on the opposite-coordinate edge of the grid
         //     also needs its -X / -Z outer side accounted for.
         for (int x = 0; x < FloorWidthCells; x++)
             for (int z = 0; z < FloorLengthCells; z++)
@@ -161,8 +161,8 @@ public sealed class GridDominoGenerator : IFloorPlanGenerator
             var merged = MergeColinearSegments(kvp.Value);
             foreach (var seg in merged)
             {
-                Cell a = cells[idA];
-                Cell? b = idB >= 0 ? cells[idB] : null;
+                Room a = rooms[idA];
+                Room? b = idB >= 0 ? rooms[idB] : null;
                 result.Add(new Adjacency(a, b, seg));
             }
         }
@@ -188,19 +188,19 @@ public sealed class GridDominoGenerator : IFloorPlanGenerator
         EdgeSegment binSeg;
         if (inBounds)
         {
-            // Two cells share this edge; record under (min, max). To preserve a consistent
-            // CCW direction (CellA on left), if `self` is the larger id, we'd reverse the
-            // segment. Pick CellA = smaller id.
+            // Two rooms share this edge; record under (min, max). To preserve a consistent
+            // CCW direction (RoomA on left), if `self` is the larger id, we'd reverse the
+            // segment. Pick RoomA = smaller id.
             int idA = System.Math.Min(self, neighborId);
             int idB = System.Math.Max(self, neighborId);
             // The seg we computed is CCW around `self`. If self is the larger id, that means
-            // CellA = neighbor — reverse the segment so CellA is on the left.
+            // RoomA = neighbor — reverse the segment so RoomA is on the left.
             binSeg = (idA == self) ? seg : seg.Reversed();
             key = (idA, idB, 0);
         }
         else
         {
-            // Outer adjacency: CellA = self, CellB = null.
+            // Outer adjacency: RoomA = self, RoomB = null.
             // Use direction in key slot 3 to bin by which outer side we're on.
             int dirCode = DirCode(dx, dz);
             key = (self, -1, dirCode);
@@ -218,7 +218,7 @@ public sealed class GridDominoGenerator : IFloorPlanGenerator
     static int DirCode(int dx, int dz) => (dx + 2) * 10 + (dz + 2);   // any unique mapping
 
     /// <summary>
-    /// Returns the world-space edge segment of grid cell (x, z) on the side
+    /// Returns the world-space edge segment of grid room (x, z) on the side
     /// indicated by (dx, dz). The direction is CCW around (x, z).
     /// </summary>
     EdgeSegment GridEdgeSegment(int x, int z, int dx, int dz)

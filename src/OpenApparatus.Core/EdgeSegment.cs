@@ -4,12 +4,12 @@ using System.Numerics;
 namespace OpenApparatus;
 
 /// <summary>
-/// A directed line segment in the 2D XZ plane. Used as the unit of cell-outline
-/// description and inter-cell adjacency: one edge of a room outline, or the
+/// A directed line segment in the 2D XZ plane. Used as the unit of room-outline
+/// description and inter-room adjacency: one edge of a room outline, or the
 /// shared boundary between two rooms.
 ///
 /// Direction matters: walking from <see cref="Start"/> to <see cref="End"/>, the
-/// "inside" of the cell or adjacency is on the left (CCW outline convention).
+/// "inside" of the room or adjacency is on the left (CCW outline convention).
 /// </summary>
 public readonly struct EdgeSegment : IEquatable<EdgeSegment>
 {
@@ -39,8 +39,8 @@ public readonly struct EdgeSegment : IEquatable<EdgeSegment>
 
     /// <summary>
     /// Unit vector 90° counter-clockwise from <see cref="Direction"/>. For an outline
-    /// edge ordered CCW around the cell, this normal points OUTWARD (away from the cell's
-    /// interior). For an adjacency segment with CellA on the left, it points toward CellB.
+    /// edge ordered CCW around the room, this normal points OUTWARD (away from the room's
+    /// interior). For an adjacency segment with RoomA on the left, it points toward RoomB.
     /// </summary>
     public Vector2 Normal
     {

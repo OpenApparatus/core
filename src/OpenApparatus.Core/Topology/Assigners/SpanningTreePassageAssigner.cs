@@ -24,12 +24,12 @@ public sealed class SpanningTreePassageAssigner : IPassageAssigner
 
     /// <summary>
     /// If non-null and <see cref="IncludeOuterEntrance"/> is true, the outer entrance
-    /// is preferentially placed on a leaf cell whose <see cref="Cell.RoomType"/> matches.
+    /// is preferentially placed on a leaf room whose <see cref="Room.RoomType"/> matches.
     /// Falls back to any leaf if no matching room is on the boundary.
     /// </summary>
     public RoomType? PreferEntranceRoomType { get; set; }
 
-    public void Assign(FloorPlan plan, SeededRandom rng)
+    public void Assign(MultiRoomEnvironment plan, SeededRandom rng)
     {
         if (plan is null) throw new ArgumentNullException(nameof(plan));
         if (rng is null) throw new ArgumentNullException(nameof(rng));
@@ -42,16 +42,16 @@ public sealed class SpanningTreePassageAssigner : IPassageAssigner
         var internalEdges = plan.GetInternalAdjacencies().ToList();
         rng.Shuffle(internalEdges);
 
-        var unionFind = new UnionFind(plan.Cells.Count);
-        // Map cell.Id → contiguous index for the union-find.
-        var idToIndex = new Dictionary<int, int>(plan.Cells.Count);
-        for (int i = 0; i < plan.Cells.Count; i++)
-            idToIndex[plan.Cells[i].Id] = i;
+        var unionFind = new UnionFind(plan.Rooms.Count);
+        // Map room.Id → contiguous index for the union-find.
+        var idToIndex = new Dictionary<int, int>(plan.Rooms.Count);
+        for (int i = 0; i < plan.Rooms.Count; i++)
+            idToIndex[plan.Rooms[i].Id] = i;
 
         foreach (var adj in internalEdges)
         {
-            int a = idToIndex[adj.CellA.Id];
-            int b = idToIndex[adj.CellB!.Id];
+            int a = idToIndex[adj.RoomA.Id];
+            int b = idToIndex[adj.RoomB!.Id];
             if (unionFind.Find(a) == unionFind.Find(b)) continue;   // would create a cycle
             unionFind.Union(a, b);
             adj.Passage = MakeDoorwayFor(adj);
@@ -63,12 +63,12 @@ public sealed class SpanningTreePassageAssigner : IPassageAssigner
         var outerEdges = plan.GetOuterAdjacencies().ToList();
         if (outerEdges.Count == 0) return;
 
-        // Prefer outer adjacencies whose cell matches PreferEntranceRoomType, if any.
+        // Prefer outer adjacencies whose room matches PreferEntranceRoomType, if any.
         Adjacency entrance;
         if (PreferEntranceRoomType is RoomType preferred)
         {
             var preferredOuters = outerEdges
-                .Where(a => a.CellA.RoomType == preferred)
+                .Where(a => a.RoomA.RoomType == preferred)
                 .ToList();
             entrance = preferredOuters.Count > 0
                 ? rng.Pick(preferredOuters)
