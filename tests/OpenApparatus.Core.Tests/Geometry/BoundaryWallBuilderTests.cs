@@ -121,6 +121,42 @@ public class BoundaryWallBuilderTests
     }
 
     [Fact]
+    public void DoorwayWithTwoOpenings_HasExpected22Faces()
+    {
+        // Two openings on a 1m wall. Both have lintels (height < wall height) and
+        // are interior (non-flush with start or end), so we get the full set of
+        // pieces the multi-opening builder emits.
+        // Faces for N=2: 2 outer wall sections × 2 sides + 1 between section × 2 sides
+        //                = 6
+        //                + 2 lintels × 2 sides = 4
+        //                + 1 top + 2 caps = 3
+        //                + 3 bottom strips (2 between/around) = 3
+        //                + 2 tunnels × 3 (left/right/ceiling) = 6
+        //                Total = 22 (matches 8N + 6 with N = 2).
+        var (_, _, adj) = MakeInternalAdjacency(new Passage.Doorway(new[]
+        {
+            new Opening(offsetAlongEdge: 0.15f, width: 0.2f, height: 2.2f),
+            new Opening(offsetAlongEdge: 0.55f, width: 0.2f, height: 2.2f),
+        }));
+        var mesh = new BoundaryWallBuilder().Build(adj, 0.2f, 3f);
+        Assert.Equal(22 * 2, mesh.TriangleCount(SubmeshIndex.Walls));
+        Assert.Equal(22 * 4, mesh.VertexCount);
+    }
+
+    [Fact]
+    public void DoorwayWithOverlappingOpenings_Throws()
+    {
+        // Opening 0 ends at 0.35; opening 1 starts at 0.30 — overlap.
+        var (_, _, adj) = MakeInternalAdjacency(new Passage.Doorway(new[]
+        {
+            new Opening(0.15f, 0.2f, 2.2f),
+            new Opening(0.30f, 0.2f, 2.2f),
+        }));
+        Assert.Throws<InvalidOperationException>(() =>
+            new BoundaryWallBuilder().Build(adj, 0.2f, 3f));
+    }
+
+    [Fact]
     public void DoorwayThatExceedsWallLength_Throws()
     {
         var (_, _, adj) = MakeInternalAdjacency(
