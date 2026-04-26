@@ -47,6 +47,23 @@ public sealed class Cell
         return rotated;
     }
 
+    /// <summary>
+    /// Transform a cell-local 2D point (in XZ) into a world-space 3D point at the
+    /// given <paramref name="y"/>, applying <see cref="Position"/> and <see cref="Rotation"/>.
+    /// </summary>
+    public System.Numerics.Vector3 LocalToWorld(System.Numerics.Vector2 cellLocal, float y)
+    {
+        if (Rotation == 0f)
+            return new System.Numerics.Vector3(cellLocal.X + Position.X, y, cellLocal.Y + Position.Y);
+
+        float rad = Rotation * MathF.PI / 180f;
+        float cos = MathF.Cos(rad);
+        float sin = MathF.Sin(rad);
+        float rx = cellLocal.X * cos - cellLocal.Y * sin;
+        float rz = cellLocal.X * sin + cellLocal.Y * cos;
+        return new System.Numerics.Vector3(rx + Position.X, y, rz + Position.Y);
+    }
+
     /// <summary>The cell's bounds in world coordinates (axis-aligned even if shape is rotated).</summary>
     public Bounds2D GetWorldBounds()
     {
