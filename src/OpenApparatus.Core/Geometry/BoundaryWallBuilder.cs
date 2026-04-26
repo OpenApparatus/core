@@ -189,12 +189,15 @@ public sealed class BoundaryWallBuilder
                 slab.Corner( true, doorEnd, op.Height),
                 slab.Corner(false, doorEnd, op.Height));
             // Ceiling — lintel underside (or wall-top span if full-height opening).
+            // Wound so the normal points -Y, i.e. visible when looking up through the
+            // opening from below. The intuitive +N→+N→-N→-N order would put the
+            // normal facing up, leaving the underside back-face culled.
             float ceilY = op.Height < h - EPS ? op.Height : h;
             b.AddQuadAutoUv(SubmeshIndex.Walls,
                 slab.Corner( true, op.OffsetAlongEdge, ceilY),
-                slab.Corner( true, doorEnd,            ceilY),
+                slab.Corner(false, op.OffsetAlongEdge, ceilY),
                 slab.Corner(false, doorEnd,            ceilY),
-                slab.Corner(false, op.OffsetAlongEdge, ceilY));
+                slab.Corner( true, doorEnd,            ceilY));
             // Bottom: door = threshold floor (Floor submesh, normal +Y),
             //         window = sill top (Walls submesh, normal +Y).
             int bottomSubmesh = op.IsWindow ? SubmeshIndex.Walls : SubmeshIndex.Floor;
