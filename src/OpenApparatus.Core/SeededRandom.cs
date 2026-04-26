@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace OpenApparatus.Math;
+namespace OpenApparatus;
 
 /// <summary>
 /// Deterministic random number source. The single RNG used throughout floor-plan

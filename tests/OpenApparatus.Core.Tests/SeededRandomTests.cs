@@ -1,6 +1,4 @@
-using OpenApparatus.Math;
-
-namespace OpenApparatus.Tests.Math;
+namespace OpenApparatus.Tests;
 
 public class SeededRandomTests
 {
