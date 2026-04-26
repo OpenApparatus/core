@@ -149,6 +149,48 @@ public class BoundaryWallBuilderTests
     }
 
     [Fact]
+    public void Window_AddsSillPanelAndKeepsBottomStripContinuous()
+    {
+        // Window: sill 1.0 → opening from y=1.0 to y=2.2 on a 3m wall.
+        // Wall body around opening: 2 outer sections × 2 sides = 4
+        //   + lintel above × 2 sides = 2
+        //   + sill panel below × 2 sides = 2
+        //   + top = 1
+        //   + caps = 2
+        //   + continuous bottom strip (windows don't break it) = 1
+        //   + tunnel (left, right, ceiling, sill top) = 4
+        //   = 16 faces.
+        // Floor submesh: 0 (windows don't add a threshold floor).
+        var (_, _, adj) = MakeInternalAdjacency(new Passage.Doorway(new[]
+        {
+            new Opening(offsetAlongEdge: 0.4f, width: 0.2f, height: 2.2f, sillHeight: 1.0f),
+        }));
+        var mesh = new BoundaryWallBuilder().Build(adj, 0.2f, 3f);
+        Assert.Equal(16 * 2, mesh.TriangleCount(SubmeshIndex.Walls));
+        Assert.Equal(0, mesh.TriangleCount(SubmeshIndex.Floor));
+    }
+
+    [Fact]
+    public void Window_VertexCount_Matches16FacesAt4VertsEach()
+    {
+        var (_, _, adj) = MakeInternalAdjacency(new Passage.Doorway(new[]
+        {
+            new Opening(0.4f, 0.2f, 2.2f, sillHeight: 1.0f),
+        }));
+        var mesh = new BoundaryWallBuilder().Build(adj, 0.2f, 3f);
+        Assert.Equal(16 * 4, mesh.VertexCount);
+    }
+
+    [Fact]
+    public void Window_SillAtOrAboveHeight_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new Opening(0.4f, 0.2f, height: 2.2f, sillHeight: 2.2f));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new Opening(0.4f, 0.2f, height: 2.2f, sillHeight: 3f));
+    }
+
+    [Fact]
     public void DoorwayWithOverlappingOpenings_Throws()
     {
         // Opening 0 ends at 0.35; opening 1 starts at 0.30 — overlap.

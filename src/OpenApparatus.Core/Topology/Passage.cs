@@ -65,26 +65,42 @@ public abstract class Passage
 /// <summary>
 /// One rectangular opening in a doorway wall. <see cref="OffsetAlongEdge"/> is
 /// the distance from the shared segment's Start to the opening's left edge.
+/// <see cref="SillHeight"/> is the bottom of the opening; 0 = a door (sits on
+/// the floor), &gt;0 = a window (a wall panel below the opening). <see cref="Height"/>
+/// is the top of the opening (head height), measured from the floor.
 /// </summary>
 public readonly struct Opening : IEquatable<Opening>
 {
     public float OffsetAlongEdge { get; }
     public float Width { get; }
     public float Height { get; }
+    public float SillHeight { get; }
 
-    public Opening(float offsetAlongEdge, float width, float height)
+    public Opening(float offsetAlongEdge, float width, float height, float sillHeight = 0f)
     {
         if (offsetAlongEdge < 0f) throw new ArgumentOutOfRangeException(nameof(offsetAlongEdge));
         if (width <= 0f) throw new ArgumentOutOfRangeException(nameof(width));
         if (height <= 0f) throw new ArgumentOutOfRangeException(nameof(height));
+        if (sillHeight < 0f) throw new ArgumentOutOfRangeException(nameof(sillHeight));
+        if (sillHeight >= height)
+            throw new ArgumentOutOfRangeException(nameof(sillHeight),
+                $"SillHeight ({sillHeight}) must be less than Height ({height}).");
         OffsetAlongEdge = offsetAlongEdge;
         Width = width;
         Height = height;
+        SillHeight = sillHeight;
     }
 
+    /// <summary>True when <see cref="SillHeight"/> &gt; 0 — the opening floats above the floor.</summary>
+    public bool IsWindow => SillHeight > 0f;
+
     public bool Equals(Opening other) =>
-        OffsetAlongEdge == other.OffsetAlongEdge && Width == other.Width && Height == other.Height;
+        OffsetAlongEdge == other.OffsetAlongEdge && Width == other.Width
+        && Height == other.Height && SillHeight == other.SillHeight;
     public override bool Equals(object? obj) => obj is Opening o && Equals(o);
-    public override int GetHashCode() => HashCode.Combine(OffsetAlongEdge, Width, Height);
-    public override string ToString() => $"({OffsetAlongEdge:F2}, w={Width:F2}, h={Height:F2})";
+    public override int GetHashCode() => HashCode.Combine(OffsetAlongEdge, Width, Height, SillHeight);
+    public override string ToString() =>
+        SillHeight > 0f
+            ? $"({OffsetAlongEdge:F2}, w={Width:F2}, sill={SillHeight:F2}, h={Height:F2})"
+            : $"({OffsetAlongEdge:F2}, w={Width:F2}, h={Height:F2})";
 }

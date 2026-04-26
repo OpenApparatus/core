@@ -127,6 +127,14 @@ public sealed class BoundaryWallBuilder
                 EmitLintel(b, slab, op.OffsetAlongEdge, op.OffsetAlongEdge + op.Width, op.Height, h);
         }
 
+        // Sill panel below each window (SillHeight > 0) — wall body between the floor
+        // and the bottom of the opening. Uses EmitLintel since geometry is identical.
+        foreach (var op in openings)
+        {
+            if (op.SillHeight > EPS)
+                EmitLintel(b, slab, op.OffsetAlongEdge, op.OffsetAlongEdge + op.Width, 0f, op.SillHeight);
+        }
+
         // Top face (full length, unaffected by openings).
         b.AddQuadAutoUv(SubmeshIndex.Walls,
             slab.Corner(false, 0f,          h),
@@ -134,11 +142,13 @@ public sealed class BoundaryWallBuilder
             slab.Corner( true, slab.Length, h),
             slab.Corner( true, 0f,          h));
 
-        // Bottom strips between (and around) openings.
+        // Bottom strips. Doors break the bottom strip (their threshold floor goes in
+        // the Floor submesh below); windows do not, since the wall is solid below them.
         prev = 0f;
         for (int i = 0; i < openings.Count; i++)
         {
             var op = openings[i];
+            if (op.IsWindow) continue;
             if (op.OffsetAlongEdge > prev + EPS)
                 EmitBottomStrip(b, slab, prev, op.OffsetAlongEdge);
             prev = op.OffsetAlongEdge + op.Width;
@@ -158,40 +168,41 @@ public sealed class BoundaryWallBuilder
             slab.Corner(false, slab.Length, h),
             slab.Corner( true, slab.Length, h));
 
-        // Tunnel inner faces (visible inside each doorway): left side, right side,
+        // Tunnel inner faces (visible inside each opening): left side, right side,
         // ceiling at the lintel's underside (or wall top for full-height openings),
-        // and a threshold floor at y=0 spanning the wall thickness.
+        // and a bottom — either a threshold floor (door, in Floor submesh) or a sill
+        // top (window, in Walls submesh).
         foreach (var op in openings)
         {
             float doorEnd = op.OffsetAlongEdge + op.Width;
+            float yBot = op.SillHeight;
             // Left side (at op.OffsetAlongEdge, normal +D)
             b.AddQuadAutoUv(SubmeshIndex.Walls,
-                slab.Corner( true, op.OffsetAlongEdge, 0f),
-                slab.Corner(false, op.OffsetAlongEdge, 0f),
+                slab.Corner( true, op.OffsetAlongEdge, yBot),
+                slab.Corner(false, op.OffsetAlongEdge, yBot),
                 slab.Corner(false, op.OffsetAlongEdge, op.Height),
                 slab.Corner( true, op.OffsetAlongEdge, op.Height));
             // Right side (at doorEnd, normal -D)
             b.AddQuadAutoUv(SubmeshIndex.Walls,
-                slab.Corner(false, doorEnd, 0f),
-                slab.Corner( true, doorEnd, 0f),
+                slab.Corner(false, doorEnd, yBot),
+                slab.Corner( true, doorEnd, yBot),
                 slab.Corner( true, doorEnd, op.Height),
                 slab.Corner(false, doorEnd, op.Height));
             // Ceiling — lintel underside (or wall-top span if full-height opening).
-            // Without this, looking up while walking through the doorway shows the void.
             float ceilY = op.Height < h - EPS ? op.Height : h;
             b.AddQuadAutoUv(SubmeshIndex.Walls,
                 slab.Corner( true, op.OffsetAlongEdge, ceilY),
                 slab.Corner( true, doorEnd,            ceilY),
                 slab.Corner(false, doorEnd,            ceilY),
                 slab.Corner(false, op.OffsetAlongEdge, ceilY));
-            // Threshold floor (normal +Y) — closes the gap between the two room floors.
-            // Goes in the Floor submesh so it picks up the floor material in tools that
-            // honor submesh assignments.
-            b.AddQuadAutoUv(SubmeshIndex.Floor,
-                slab.Corner(false, op.OffsetAlongEdge, 0f),
-                slab.Corner( true, op.OffsetAlongEdge, 0f),
-                slab.Corner( true, doorEnd,            0f),
-                slab.Corner(false, doorEnd,            0f));
+            // Bottom: door = threshold floor (Floor submesh, normal +Y),
+            //         window = sill top (Walls submesh, normal +Y).
+            int bottomSubmesh = op.IsWindow ? SubmeshIndex.Walls : SubmeshIndex.Floor;
+            b.AddQuadAutoUv(bottomSubmesh,
+                slab.Corner(false, op.OffsetAlongEdge, yBot),
+                slab.Corner( true, op.OffsetAlongEdge, yBot),
+                slab.Corner( true, doorEnd,            yBot),
+                slab.Corner(false, doorEnd,            yBot));
         }
 
         b.EnsureSubmeshCount(SubmeshIndex.Count);
