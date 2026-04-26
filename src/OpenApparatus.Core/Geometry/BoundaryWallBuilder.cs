@@ -86,88 +86,67 @@ public sealed class BoundaryWallBuilder
     static MeshData BuildDoorway(Adjacency adj, float t, float h, Passage.Doorway door)
     {
         var slab = SlabFrame.From(adj.SharedSegment, t);
+        const float EPS = 1e-5f;
 
-        float doorOffset = door.OffsetAlongEdge;
-        float doorWidth = door.Width;
-        float doorHeight = door.Height;
-        float doorEnd = doorOffset + doorWidth;
-
-        if (doorOffset < 0f || doorEnd > slab.Length)
-            throw new InvalidOperationException(
-                $"Doorway (offset {doorOffset}, width {doorWidth}) does not fit in wall length {slab.Length:F3}.");
-        if (doorHeight > h)
-            throw new InvalidOperationException(
-                $"Doorway height {doorHeight} exceeds wall height {h}.");
+        // Sort openings by offset and validate fit + non-overlap.
+        var openings = new List<Opening>(door.Openings);
+        openings.Sort((a, c) => a.OffsetAlongEdge.CompareTo(c.OffsetAlongEdge));
+        for (int i = 0; i < openings.Count; i++)
+        {
+            var op = openings[i];
+            if (op.OffsetAlongEdge < -EPS || op.OffsetAlongEdge + op.Width > slab.Length + EPS)
+                throw new InvalidOperationException(
+                    $"Opening (offset {op.OffsetAlongEdge}, width {op.Width}) does not fit in wall length {slab.Length:F3}.");
+            if (op.Height > h + EPS)
+                throw new InvalidOperationException(
+                    $"Opening height {op.Height} exceeds wall height {h}.");
+            if (i > 0 && op.OffsetAlongEdge < openings[i - 1].OffsetAlongEdge + openings[i - 1].Width - EPS)
+                throw new InvalidOperationException(
+                    $"Openings overlap: opening {i - 1} ends at " +
+                    $"{openings[i - 1].OffsetAlongEdge + openings[i - 1].Width:F3} but opening {i} starts at {op.OffsetAlongEdge:F3}.");
+        }
 
         var b = new MeshDataBuilder();
 
-        // Convenience flags for edge cases.
-        bool hasLeftJamb  = doorOffset > 1e-5f;
-        bool hasRightJamb = doorEnd    < slab.Length - 1e-5f;
-        bool hasLintel    = doorHeight < h - 1e-5f;
+        // Solid wall sections between (and around) openings — full height, both faces.
+        float prev = 0f;
+        for (int i = 0; i < openings.Count; i++)
+        {
+            var op = openings[i];
+            if (op.OffsetAlongEdge > prev + EPS)
+                EmitFullHeightSection(b, slab, prev, op.OffsetAlongEdge, h);
+            prev = op.OffsetAlongEdge + op.Width;
+        }
+        if (slab.Length > prev + EPS)
+            EmitFullHeightSection(b, slab, prev, slab.Length, h);
 
-        // -------- RoomA face (normal +N) split into left jamb / lintel / right jamb --------
-        if (hasLeftJamb)
-            b.AddQuadAutoUv(SubmeshIndex.Walls,
-                slab.Corner( true, 0f,         0f),
-                slab.Corner( true, doorOffset, 0f),
-                slab.Corner( true, doorOffset, h),
-                slab.Corner( true, 0f,         h));
-        if (hasRightJamb)
-            b.AddQuadAutoUv(SubmeshIndex.Walls,
-                slab.Corner( true, doorEnd,     0f),
-                slab.Corner( true, slab.Length, 0f),
-                slab.Corner( true, slab.Length, h),
-                slab.Corner( true, doorEnd,     h));
-        if (hasLintel)
-            b.AddQuadAutoUv(SubmeshIndex.Walls,
-                slab.Corner( true, doorOffset, doorHeight),
-                slab.Corner( true, doorEnd,    doorHeight),
-                slab.Corner( true, doorEnd,    h),
-                slab.Corner( true, doorOffset, h));
+        // Lintel above each opening — only if the opening is shorter than the wall.
+        foreach (var op in openings)
+        {
+            if (op.Height < h - EPS)
+                EmitLintel(b, slab, op.OffsetAlongEdge, op.OffsetAlongEdge + op.Width, op.Height, h);
+        }
 
-        // -------- RoomB face (normal -N) — same splits, mirrored winding --------
-        if (hasLeftJamb)
-            b.AddQuadAutoUv(SubmeshIndex.Walls,
-                slab.Corner(false, 0f,         0f),
-                slab.Corner(false, 0f,         h),
-                slab.Corner(false, doorOffset, h),
-                slab.Corner(false, doorOffset, 0f));
-        if (hasRightJamb)
-            b.AddQuadAutoUv(SubmeshIndex.Walls,
-                slab.Corner(false, doorEnd,     0f),
-                slab.Corner(false, doorEnd,     h),
-                slab.Corner(false, slab.Length, h),
-                slab.Corner(false, slab.Length, 0f));
-        if (hasLintel)
-            b.AddQuadAutoUv(SubmeshIndex.Walls,
-                slab.Corner(false, doorOffset, doorHeight),
-                slab.Corner(false, doorOffset, h),
-                slab.Corner(false, doorEnd,    h),
-                slab.Corner(false, doorEnd,    doorHeight));
-
-        // -------- Top face (full length, unaffected by doorway) --------
+        // Top face (full length, unaffected by openings).
         b.AddQuadAutoUv(SubmeshIndex.Walls,
-            slab.Corner(false, 0f,         h),
+            slab.Corner(false, 0f,          h),
             slab.Corner(false, slab.Length, h),
             slab.Corner( true, slab.Length, h),
-            slab.Corner( true, 0f,         h));
+            slab.Corner( true, 0f,          h));
 
-        // -------- Bottom face — split by the door opening --------
-        if (hasLeftJamb)
-            b.AddQuadAutoUv(SubmeshIndex.Walls,
-                slab.Corner( true, 0f,         0f),
-                slab.Corner( true, doorOffset, 0f),
-                slab.Corner(false, doorOffset, 0f),
-                slab.Corner(false, 0f,         0f));
-        if (hasRightJamb)
-            b.AddQuadAutoUv(SubmeshIndex.Walls,
-                slab.Corner( true, doorEnd,     0f),
-                slab.Corner( true, slab.Length, 0f),
-                slab.Corner(false, slab.Length, 0f),
-                slab.Corner(false, doorEnd,     0f));
+        // Bottom strips between (and around) openings.
+        prev = 0f;
+        for (int i = 0; i < openings.Count; i++)
+        {
+            var op = openings[i];
+            if (op.OffsetAlongEdge > prev + EPS)
+                EmitBottomStrip(b, slab, prev, op.OffsetAlongEdge);
+            prev = op.OffsetAlongEdge + op.Width;
+        }
+        if (slab.Length > prev + EPS)
+            EmitBottomStrip(b, slab, prev, slab.Length);
 
-        // -------- Side caps (start, end) — full slab cross-section, unaffected by door --------
+        // Side caps — full slab cross-section at the wall ends.
         b.AddQuadAutoUv(SubmeshIndex.Walls,
             slab.Corner( true, 0f, 0f),
             slab.Corner( true, 0f, h),
@@ -179,29 +158,76 @@ public sealed class BoundaryWallBuilder
             slab.Corner(false, slab.Length, h),
             slab.Corner( true, slab.Length, h));
 
-        // -------- Tunnel inner faces (visible inside the doorway) --------
-        // Tunnel left face (at door start, normal +D pointing toward door interior)
-        b.AddQuadAutoUv(SubmeshIndex.Walls,
-            slab.Corner( true, doorOffset, 0f),
-            slab.Corner(false, doorOffset, 0f),
-            slab.Corner(false, doorOffset, doorHeight),
-            slab.Corner( true, doorOffset, doorHeight));
-        // Tunnel right face (at door end, normal -D)
-        b.AddQuadAutoUv(SubmeshIndex.Walls,
-            slab.Corner(false, doorEnd, 0f),
-            slab.Corner( true, doorEnd, 0f),
-            slab.Corner( true, doorEnd, doorHeight),
-            slab.Corner(false, doorEnd, doorHeight));
-        // Tunnel ceiling (lintel underside, normal -Y), present only if there's a lintel
-        if (hasLintel)
+        // Tunnel inner faces (visible inside each doorway): left side, right side,
+        // and ceiling at the lintel's underside.
+        foreach (var op in openings)
+        {
+            float doorEnd = op.OffsetAlongEdge + op.Width;
+            // Left side (at op.OffsetAlongEdge, normal +D)
             b.AddQuadAutoUv(SubmeshIndex.Walls,
-                slab.Corner( true, doorOffset, doorHeight),
-                slab.Corner( true, doorEnd,    doorHeight),
-                slab.Corner(false, doorEnd,    doorHeight),
-                slab.Corner(false, doorOffset, doorHeight));
+                slab.Corner( true, op.OffsetAlongEdge, 0f),
+                slab.Corner(false, op.OffsetAlongEdge, 0f),
+                slab.Corner(false, op.OffsetAlongEdge, op.Height),
+                slab.Corner( true, op.OffsetAlongEdge, op.Height));
+            // Right side (at doorEnd, normal -D)
+            b.AddQuadAutoUv(SubmeshIndex.Walls,
+                slab.Corner(false, doorEnd, 0f),
+                slab.Corner( true, doorEnd, 0f),
+                slab.Corner( true, doorEnd, op.Height),
+                slab.Corner(false, doorEnd, op.Height));
+            // Ceiling, if there's a lintel above the opening
+            if (op.Height < h - EPS)
+                b.AddQuadAutoUv(SubmeshIndex.Walls,
+                    slab.Corner( true, op.OffsetAlongEdge, op.Height),
+                    slab.Corner( true, doorEnd,            op.Height),
+                    slab.Corner(false, doorEnd,            op.Height),
+                    slab.Corner(false, op.OffsetAlongEdge, op.Height));
+        }
 
         b.EnsureSubmeshCount(SubmeshIndex.Count);
         return b.ToMeshData();
+    }
+
+    /// <summary>Emits the CellA + CellB face of a full-height wall section [xStart, xEnd] × [0, h].</summary>
+    static void EmitFullHeightSection(MeshDataBuilder b, SlabFrame slab, float xStart, float xEnd, float h)
+    {
+        // CellA face (normal +N), CCW from CellA-side view.
+        b.AddQuadAutoUv(SubmeshIndex.Walls,
+            slab.Corner( true, xStart, 0f),
+            slab.Corner( true, xEnd,   0f),
+            slab.Corner( true, xEnd,   h),
+            slab.Corner( true, xStart, h));
+        // CellB face (normal -N), reversed winding.
+        b.AddQuadAutoUv(SubmeshIndex.Walls,
+            slab.Corner(false, xStart, 0f),
+            slab.Corner(false, xStart, h),
+            slab.Corner(false, xEnd,   h),
+            slab.Corner(false, xEnd,   0f));
+    }
+
+    /// <summary>Emits CellA + CellB faces for a lintel — wall section [xStart, xEnd] × [yBot, yTop].</summary>
+    static void EmitLintel(MeshDataBuilder b, SlabFrame slab, float xStart, float xEnd, float yBot, float yTop)
+    {
+        b.AddQuadAutoUv(SubmeshIndex.Walls,
+            slab.Corner( true, xStart, yBot),
+            slab.Corner( true, xEnd,   yBot),
+            slab.Corner( true, xEnd,   yTop),
+            slab.Corner( true, xStart, yTop));
+        b.AddQuadAutoUv(SubmeshIndex.Walls,
+            slab.Corner(false, xStart, yBot),
+            slab.Corner(false, xStart, yTop),
+            slab.Corner(false, xEnd,   yTop),
+            slab.Corner(false, xEnd,   yBot));
+    }
+
+    /// <summary>Emits the bottom face strip [xStart, xEnd] at y=0 (normal -Y).</summary>
+    static void EmitBottomStrip(MeshDataBuilder b, SlabFrame slab, float xStart, float xEnd)
+    {
+        b.AddQuadAutoUv(SubmeshIndex.Walls,
+            slab.Corner( true, xStart, 0f),
+            slab.Corner( true, xEnd,   0f),
+            slab.Corner(false, xEnd,   0f),
+            slab.Corner(false, xStart, 0f));
     }
 
     // -------------------- Slab frame helper --------------------

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace OpenApparatus.Topology;
 
@@ -27,27 +28,63 @@ public abstract class Passage
     }
 
     /// <summary>
-    /// A solid wall with a rectangular doorway cut into it. The door starts at
-    /// <see cref="OffsetAlongEdge"/> measured from the shared segment's Start, has the
-    /// given <see cref="Width"/>, and rises from the floor to <see cref="Height"/>.
+    /// A solid wall with one or more rectangular openings cut into it. Each opening
+    /// sits on the floor (y=0) and rises to the opening's height.
     /// </summary>
     public sealed class Doorway : Passage
     {
-        public float OffsetAlongEdge { get; }
-        public float Width { get; }
-        public float Height { get; }
+        public IReadOnlyList<Opening> Openings { get; }
 
-        public Doorway(float offsetAlongEdge, float width, float height)
+        public Doorway(IReadOnlyList<Opening> openings)
         {
-            if (offsetAlongEdge < 0f) throw new ArgumentOutOfRangeException(nameof(offsetAlongEdge));
-            if (width <= 0f) throw new ArgumentOutOfRangeException(nameof(width));
-            if (height <= 0f) throw new ArgumentOutOfRangeException(nameof(height));
-            OffsetAlongEdge = offsetAlongEdge;
-            Width = width;
-            Height = height;
+            if (openings is null) throw new ArgumentNullException(nameof(openings));
+            if (openings.Count == 0)
+                throw new ArgumentException("Doorway must have at least one opening.", nameof(openings));
+            Openings = openings;
         }
 
+        /// <summary>Convenience constructor for the common single-opening case.</summary>
+        public Doorway(float offsetAlongEdge, float width, float height)
+            : this(new[] { new Opening(offsetAlongEdge, width, height) })
+        {
+        }
+
+        // Convenience accessors for single-opening doorways. Iterate Openings directly
+        // for the multi-opening case.
+        public float OffsetAlongEdge => Openings[0].OffsetAlongEdge;
+        public float Width => Openings[0].Width;
+        public float Height => Openings[0].Height;
+
         public override string ToString() =>
-            $"Doorway(offset={OffsetAlongEdge:F2}, w={Width:F2}, h={Height:F2})";
+            Openings.Count == 1
+                ? $"Doorway(offset={OffsetAlongEdge:F2}, w={Width:F2}, h={Height:F2})"
+                : $"Doorway({Openings.Count} openings)";
     }
+}
+
+/// <summary>
+/// One rectangular opening in a doorway wall. <see cref="OffsetAlongEdge"/> is
+/// the distance from the shared segment's Start to the opening's left edge.
+/// </summary>
+public readonly struct Opening : IEquatable<Opening>
+{
+    public float OffsetAlongEdge { get; }
+    public float Width { get; }
+    public float Height { get; }
+
+    public Opening(float offsetAlongEdge, float width, float height)
+    {
+        if (offsetAlongEdge < 0f) throw new ArgumentOutOfRangeException(nameof(offsetAlongEdge));
+        if (width <= 0f) throw new ArgumentOutOfRangeException(nameof(width));
+        if (height <= 0f) throw new ArgumentOutOfRangeException(nameof(height));
+        OffsetAlongEdge = offsetAlongEdge;
+        Width = width;
+        Height = height;
+    }
+
+    public bool Equals(Opening other) =>
+        OffsetAlongEdge == other.OffsetAlongEdge && Width == other.Width && Height == other.Height;
+    public override bool Equals(object? obj) => obj is Opening o && Equals(o);
+    public override int GetHashCode() => HashCode.Combine(OffsetAlongEdge, Width, Height);
+    public override string ToString() => $"({OffsetAlongEdge:F2}, w={Width:F2}, h={Height:F2})";
 }
