@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software in research, please cite it using the metadata below."
+title: "OpenApparatus.Core: deterministic environment generation for behavioral research"
+abstract: "Engine-agnostic .NET library for procedurally generating reproducible navigation environments — multi-room floor plans, mazes, and other behavioral-research apparatuses — with deterministic output suitable for replication across studies."
+type: software
+authors:
+  - family-names: Alsbury-Nealy
+    given-names: Benjamin
+license: MIT
+repository-code: "https://github.com/OpenApparatus/core"
+url: "https://github.com/OpenApparatus"
+keywords:
+  - behavioral-neuroscience
+  - reproducibility
+  - procedural-generation
+  - maze-generation
+  - dotnet
