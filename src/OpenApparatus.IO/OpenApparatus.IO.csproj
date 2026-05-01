@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- net8.0 covers both consumers (desktop Studio + studio-web WASM at net10.0,
+         which forward-resolves net8.0 assets). The IO lib isn't a Unity-runtime
+         concern — exports are a build-time / authoring-time activity, and Unity
+         has its own OBJ/glTF importers. So no netstandard2.1 target needed. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>12</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>OpenApparatus.IO</RootNamespace>
+    <AssemblyName>OpenApparatus.IO</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenApparatus.Core\OpenApparatus.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.4" />
+  </ItemGroup>
+
+</Project>
