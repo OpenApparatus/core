@@ -1,10 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- net8.0 covers both consumers (desktop Studio + studio-web WASM at net10.0,
-         which forward-resolves net8.0 assets). The IO lib isn't a Unity-runtime
-         concern — exports are a build-time / authoring-time activity, and Unity
-         has its own OBJ/glTF importers. So no netstandard2.1 target needed. -->
+    <!-- net8.0 targets the desktop Studio app. The IO lib is authoring/build-time
+         only; the Unity package consumes its export *outputs*, not its types, and
+         doesn't need this DLL at runtime. -->
     <TargetFramework>net8.0</TargetFramework>
     <LangVersion>12</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
