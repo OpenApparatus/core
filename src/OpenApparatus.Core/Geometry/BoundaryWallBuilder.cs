@@ -50,7 +50,9 @@ public sealed class BoundaryWallBuilder
 
     static MeshData BuildClosed(Adjacency adj, float t, float h)
     {
-        var slab = SlabFrame.From(adj.SharedSegment, t);
+        // Extend the slab half a thickness past each end so perpendicular walls
+        // overlap at corners instead of leaving a t/2 square gap.
+        var slab = SlabFrame.From(Extend(adj.SharedSegment, t * 0.5f), t);
         var b = new MeshDataBuilder();
         EmitClosedWallFaces(b, slab, h);
         b.EnsureSubmeshCount(SubmeshIndex.Count);
@@ -85,11 +87,16 @@ public sealed class BoundaryWallBuilder
 
     static MeshData BuildDoorway(Adjacency adj, float t, float h, Passage.Doorway door)
     {
-        var slab = SlabFrame.From(adj.SharedSegment, t);
+        // Extend the slab half a thickness past each end (see BuildClosed).
+        float ext = t * 0.5f;
+        var slab = SlabFrame.From(Extend(adj.SharedSegment, ext), t);
         const float EPS = 1e-5f;
 
-        // Sort openings by offset and validate fit + non-overlap.
-        var openings = new List<Opening>(door.Openings);
+        // Sort openings by offset and validate fit + non-overlap. Offsets shift
+        // by the extension because the slab now starts ext before the segment.
+        var openings = new List<Opening>(door.Openings.Count);
+        foreach (var op in door.Openings)
+            openings.Add(op.With(offsetAlongEdge: op.OffsetAlongEdge + ext));
         openings.Sort((a, c) => a.OffsetAlongEdge.CompareTo(c.OffsetAlongEdge));
         for (int i = 0; i < openings.Count; i++)
         {
@@ -252,6 +259,14 @@ public sealed class BoundaryWallBuilder
             slab.Corner( true, xEnd,   0f),
             slab.Corner(false, xEnd,   0f),
             slab.Corner(false, xStart, 0f));
+    }
+
+    /// <summary>Lengthens a segment by <paramref name="d"/> at each end, keeping
+    /// its direction — used to overlap walls at corners.</summary>
+    static EdgeSegment Extend(EdgeSegment seg, float d)
+    {
+        var dir = seg.Direction;
+        return new EdgeSegment(seg.Start - dir * d, seg.End + dir * d);
     }
 
     // -------------------- Slab frame helper --------------------
