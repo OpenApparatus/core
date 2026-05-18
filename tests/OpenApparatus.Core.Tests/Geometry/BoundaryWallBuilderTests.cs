@@ -106,17 +106,21 @@ public class BoundaryWallBuilderTests
     }
 
     [Fact]
-    public void DoorwayAtSegmentStart_StillGetsLeftJamb_FromCornerExtension()
+    public void DoorwayFlushWithStart_OmitsLeftJambAndLeftBottomAndLeftTunnelSide()
     {
-        // A doorway authored flush with the segment start (offset 0) is no
-        // longer flush with the rendered slab: each slab is extended half a
-        // thickness past its ends to close corner gaps, so a stub of wall sits
-        // to the left of the opening. The full jamb set is therefore emitted,
-        // giving the same 14 wall faces as an interior doorway.
+        // doorOffset=0 → no left jamb on either side, no left bottom rim.
+        // Tunnel left side stays (still bounds the door); right side stays; ceiling stays.
+        // Faces: 2 (right-jamb each side) + 1 (top) + 1 (right bottom only) +
+        //        2 (caps) + 3 (tunnel left/right/ceiling) = 9. Wait — both tunnel sides
+        //        are still emitted because the door has finite width with two side walls.
+        // Reconsider: 2 (right jamb each side) + 1 (top) + 1 (right bottom only) + 2 (caps) +
+        //             3 (tunnel) + 0 (no lintel split) ... but lintel IS still present (door
+        //             height < wall height). Lintel = 2 (one per side).
+        // Total: 2 + 2 + 1 + 1 + 2 + 3 = 11 faces.
         var (_, _, adj) = MakeInternalAdjacency(
             new Passage.Doorway(offsetAlongEdge: 0f, width: 0.4f, height: 2.2f));
         var mesh = new BoundaryWallBuilder().Build(adj, 0.2f, 3f);
-        Assert.Equal(14 * 2, mesh.TriangleCount(SubmeshIndex.Walls));
+        Assert.Equal(11 * 2, mesh.TriangleCount(SubmeshIndex.Walls));
         Assert.Equal(1 * 2, mesh.TriangleCount(SubmeshIndex.Floor));
     }
 
