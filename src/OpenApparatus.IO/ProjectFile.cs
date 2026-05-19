@@ -109,4 +109,8 @@ public sealed class ObjectInstanceEntry
     public float Y { get; set; }
     public float Z { get; set; }
     public float Rotation { get; set; }
+    public string? GlobalId { get; set; }
+    public string? TypeId { get; set; }
+    public string? CustomId { get; set; }
+    public string? Name { get; set; }
 }

@@ -168,6 +168,10 @@ public static class JsonExporter
                         Slot = o.Slot,
                         Position = new[] { o.Position.X, o.Position.Y, o.Position.Z },
                         Rotation = o.Rotation,
+                        GlobalId = o.GlobalId,
+                        TypeId = o.TypeId,
+                        CustomId = o.CustomId,
+                        Name = o.Name,
                     });
                 }
                 entry.Objects = objList;
@@ -193,6 +197,10 @@ public static class JsonExporter
                     Slot = o.Slot,
                     Position = new[] { o.Position.X, o.Position.Y, o.Position.Z },
                     Rotation = o.Rotation,
+                    GlobalId = o.GlobalId,
+                    TypeId = o.TypeId,
+                    CustomId = o.CustomId,
+                    Name = o.Name,
                 });
             }
             if (outsideList != null)
@@ -360,6 +368,10 @@ public static class JsonExporter
         public int Slot { get; set; }
         public float[] Position { get; set; } = System.Array.Empty<float>();
         public float Rotation { get; set; }
+        public string GlobalId { get; set; } = "";
+        public string TypeId { get; set; } = "";
+        public string CustomId { get; set; } = "";
+        public string Name { get; set; } = "";
     }
 
     public sealed class ShapeSection
