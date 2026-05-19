@@ -8,6 +8,11 @@ namespace OpenApparatus.IO;
 /// re-evaluated on Rebuild() so an object whose room shrinks or moves is
 /// reassigned to whatever room now contains its world position.
 /// <see cref="Slot"/> is a 1-based index into the VM's ObjectTypes list.
+///
+/// <see cref="GlobalId"/>, <see cref="TypeId"/>, <see cref="CustomId"/> and
+/// <see cref="Name"/> are user-editable identity strings. They get sensible
+/// defaults at placement time but uniqueness is not enforced — two objects
+/// may legitimately share any of them.
 /// </summary>
 public sealed class RoomObject
 {
@@ -15,6 +20,15 @@ public sealed class RoomObject
     public int Slot { get; set; }
     public Vector3 Position { get; set; }
     public float Rotation { get; set; }
+
+    /// <summary>Per-apparatus running index, assigned at placement (0, 1, 2…).</summary>
+    public string GlobalId { get; set; } = "";
+    /// <summary>Per-type running index, assigned at placement (0, 1, 2… within the object's type).</summary>
+    public string TypeId { get; set; } = "";
+    /// <summary>Free-form identifier; defaults to "{GlobalId}_{TypeId}".</summary>
+    public string CustomId { get; set; } = "";
+    /// <summary>Display name; defaults to "{TypeName}_{GlobalId}_{TypeId}".</summary>
+    public string Name { get; set; } = "";
 }
 
 /// <summary>Shape primitive for object types. Procedural geometry is generated
